@@ -51,6 +51,21 @@ void kmain(unsigned int magic, unsigned int *mbinfo) {
     // Configura GDT PRIMEIRO
     gdt_init();
 
+    unsigned short cs, ds;
+__asm__ volatile ("mov %%cs, %0" : "=r"(cs));
+__asm__ volatile ("mov %%ds, %0" : "=r"(ds));
+
+// Lê o descritor de código (índice 1) via sgdt
+struct { unsigned short lim; unsigned int base; } __attribute__((packed)) gdtr;
+__asm__ volatile ("sgdt %0" : "=m"(gdtr));
+
+struct gdt_entry *g = (struct gdt_entry*)gdtr.base;
+serial_print("[gdt] CS="); serial_print_hex(cs);
+serial_print(" acesso_code="); serial_print_hex(g[cs >> 3].access);
+serial_print(" DS="); serial_print_hex(ds);
+serial_print(" acesso_data="); serial_print_hex(g[ds >> 3].access);
+serial_print("\n");
+    
     clear_screen();
     print("=== Kernel Minimo de Teste ===\n");
     print("Boot via Multiboot OK!\n");
