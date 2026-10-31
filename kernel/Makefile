@@ -2,7 +2,7 @@ CC      = gcc
 AS      = nasm
 LD      = ld
 CFLAGS  = -m32 -ffreestanding -fno-pie -fno-stack-protector -Wall -Wextra -O2
-LDFLAGS = -m elf_i386 -T link.ld
+LDFLAGS = -m elf_i386 --allow-multiple-definitions -T link.ld
 
 OBJS = boot.o kernel.o serial.o gdt.o
 
