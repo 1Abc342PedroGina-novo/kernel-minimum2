@@ -5,7 +5,7 @@
  
 // ---- Estado ----
 
-#define GDT_ENTRIES 5
+#define GDT_ENTRIES 6
 
 static struct gdt_entry gdt[GDT_ENTRIES];
 static struct gdt_ptr   gp;
@@ -48,6 +48,22 @@ static void gdt_set_entry(int idx, unsigned int base, unsigned int limit,
 }
 
 // ---- Entrada ----
+
+// Instala um descritor de TSS (formato especial: type=0x9, S=0)
+void gdt_set_tss(int idx, unsigned int base, unsigned int limit, unsigned char flags) {
+    if (idx < 0 || idx >= GDT_ENTRIES) return;
+
+    gdt[idx].base_low    = (base & 0xFFFF);
+    gdt[idx].base_middle = (base >> 16) & 0xFF;
+    gdt[idx].base_high   = (base >> 24) & 0xFF;
+
+    gdt[idx].limit_low   = (limit & 0xFFFF);
+    gdt[idx].granularity = ((limit >> 16) & 0x0F);
+
+    // TSS: o byte 'access' é 0x89 (Present | DPL0 | Type=1001b = TSS 32-bit available)
+    // O bit 4 (S) deve ser 0 para system segments (TSS, LDT), diferente de code/data.
+    gdt[idx].access      = flags;
+}
 
 void gdt_init(void) {
     gp.limit = sizeof(gdt) - 1;
