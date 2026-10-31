@@ -5,6 +5,7 @@
 #include "irq.h"
 #include "pit.h"
 #include "paging.h"
+#include "objdump.h"
 
 #ifndef idt_init
 extern void idt_init(void);
@@ -54,70 +55,62 @@ void print(const char *s) {
 
 void kmain(unsigned int magic, unsigned int *mbinfo) {
     serial_init();
-
     serial_print("[boot] Kernel inicializado\n");
 
-    // Configura GDT PRIMEIRO
     gdt_init();
+    idt_init();
+    irq_init();
+    paging_init();
 
-    unsigned short cs, ds;
-__asm__ volatile ("mov %%cs, %0" : "=r"(cs));
-__asm__ volatile ("mov %%ds, %0" : "=r"(ds));
-
-// Lê o descritor de código (índice 1) via sgdt
-struct { unsigned short lim; unsigned int base; } __attribute__((packed)) gdtr;
-__asm__ volatile ("sgdt %0" : "=m"(gdtr));
-
-struct gdt_entry *g = (struct gdt_entry*)gdtr.base;
-serial_print("[gdt] CS="); serial_print_hex(cs);
-serial_print(" acesso_code="); serial_print_hex(g[cs >> 3].access);
-serial_print(" DS="); serial_print_hex(ds);
-serial_print(" acesso_data="); serial_print_hex(g[ds >> 3].access);
-serial_print("\n");
-
-      idt_init();          // ← NOVO
-      irq_init();
-      paging_init();          // ← NOVO (depois de IDT, para capturar #PF)
-    clear_screen();
-    print("=== Kernel Minimo de Teste ===\n");
-    print("Boot via Multiboot OK!\n");
-    print("GDT + IDT + IRQ + Paging ativas.\n");
-    print("PIT inicializando...\n");
-
-    serial_print("[boot] Multiboot magic = ");
-    serial_print_hex(magic);
-    serial_print("\n");
-    if (magic == 0x2BADB002)
-        serial_print("[boot] Multiboot valido.\n");
-
-    // Timer a 100 Hz
     pit_init(100);
     print("Timer 100 Hz ativo.\n");
 
-    // Só registra o probe de teclado, NÃO desmascara IRQ1.
-    // Assim o kernel não "perde" teclas no CI.
-    // Descomente a linha abaixo para testar o teclado manualmente:
-    // irq_register_handler(1, irq1_probe); irq_clear_mask(1);
+    // ===== DEMO: Object Pool =====
+    serial_print("\n[demo] === Object Pool ===\n");
 
-    serial_print("[boot] Entrando em loop principal\n");
-
-    // Loop principal: lê pit_ticks() e loga uptime a cada segundo.
-    // Isso prova que o contador incrementa fora do handler (thread-safe via volatile).
-    unsigned int last_report = 0;
-    while (1) {
-        unsigned int t = pit_ticks();
-        unsigned int secs = t / pit_frequency();
-
-        if (secs != last_report) {
-            last_report = secs;
-            serial_print("[main] uptime ");
-            serial_print_dec(secs);
-            serial_print("s (");
-            serial_print_dec(t);
-            serial_print(" ticks)\n");
-        }
-
-        // hlt até a próxima interrupção — economiza CPU e é seguro
-        __asm__ volatile ("hlt");
+    // Pool de "tasks" — 64 bytes cada, 64 objetos por página
+    struct objpool *tasks = objpool_create(64, 64);
+    if (!tasks) {
+        serial_print("[demo] FALHOU criar pool\n");
+        while (1) __asm__ volatile ("hlt");
     }
+
+    // Aloca 5 objetos
+    void *objs[5];
+    for (int i = 0; i < 5; i++) {
+        objs[i] = objpool_alloc(tasks);
+        serial_print("[demo] alloc[");
+        serial_print_dec(i);
+        serial_print("] @");
+        serial_print_hex((uint32_t)objs[i]);
+        serial_print("\n");
+    }
+
+    serial_print("[demo] total=");
+    serial_print_dec(objpool_total(tasks));
+    serial_print(" used=");
+    serial_print_dec(objpool_used(tasks));
+    serial_print(" free=");
+    serial_print_dec(objpool_free_count(tasks));
+    serial_print("\n");
+
+    // Libera 2 e aloca 1
+    objpool_free(tasks, objs[0]);
+    objpool_free(tasks, objs[2]);
+
+    void *reused = objpool_alloc(tasks);
+    serial_print("[demo] realloc @");
+    serial_print_hex((uint32_t)reused);
+    serial_print(" (deve reusar objs[0] ou objs[2])\n");
+
+    // Tenta liberar ponteiro inválido
+    int ret = objpool_free(tasks, (void *)0xDEADBEEF);
+    serial_print("[demo] free invalido retornou ");
+    serial_print_dec((uint32_t)ret);
+    serial_print(" (esperado -1)\n");
+
+    // ===== FIM DEMO =====
+
+    serial_print("\n[boot] Entrando em loop principal\n");
+    // ... loop ...
 }
