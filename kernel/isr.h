@@ -6,7 +6,10 @@
 // A ordem importa: deve bater exatamente com a ordem dos pushes
 // em isr.asm (do último push para o primeiro).
 struct regs {
-    unsigned int gs, fs, es, ds;                        // segmentos (pushed por último)
+    unsigned int ds;                        // segmentos (pushed por último)
+    unsigned int gs;
+    unsigned int fs;
+    unsigned int es;
     unsigned int edi, esi, ebp, esp_dummy, ebx, edx, ecx, eax; // pusha/popa
     unsigned int int_no, err_code;                      // pushed pelo stub
     unsigned int eip, cs, eflags, useresp, ss;          // pushed pela CPU
