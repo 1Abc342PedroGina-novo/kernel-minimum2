@@ -111,6 +111,13 @@ void idt_init(void) {
 // ---- Handler C chamado pelos stubs ----
 
 void isr_handler(struct regs *r) {
+    // Vetores 0x20..0x2F são IRQs — delega
+    if (r->int_no >= 0x20 && r->int_no < 0x30) {
+        irq_handler(r);
+        return;
+    }
+
+    // Exceção real (0x00..0x1F): dump e halt
     serial_print("\n[exception] ");
     if (r->int_no < 32) {
         serial_print(exception_names[r->int_no]);
@@ -118,7 +125,7 @@ void isr_handler(struct regs *r) {
         serial_print_dec(r->int_no);
         serial_print(")");
     } else {
-        serial_print("IRQ/desconhecido (");
+        serial_print("desconhecido (");
         serial_print_dec(r->int_no);
         serial_print(")");
     }
@@ -135,7 +142,6 @@ void isr_handler(struct regs *r) {
     serial_print("\n");
 
     if (r->int_no == 14) {
-        // Page fault: CR2 tem o endereço que causou o fault
         unsigned int cr2;
         __asm__ volatile ("mov %%cr2, %0" : "=r"(cr2));
         serial_print("[exception]   CR2=");
@@ -154,8 +160,6 @@ void isr_handler(struct regs *r) {
     serial_print("\n");
 
     serial_print("[exception] --- halt ---\n");
-
-    // Exceções são fatais em ring 0 sem tratamento específico
     while (1)
         __asm__ volatile ("hlt");
 }
