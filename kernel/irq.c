@@ -72,9 +72,6 @@ static void pic_remap(void) {
 void irq_handler(struct regs *r) {
     unsigned int irq = r->int_no - IRQ_BASE;
 
-    serial_print("[irq] entrou com int_no=");
-serial_print_hex(r->int_no);
-serial_print("\n");
     
     if (irq < 16 && irq_handlers[irq] != 0) {
         irq_handlers[irq](r);
