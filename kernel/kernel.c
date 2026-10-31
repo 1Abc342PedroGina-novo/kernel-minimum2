@@ -82,7 +82,7 @@ void kmain(unsigned int magic, unsigned int *mbinfo) {
         serial_print("[demo] alloc[");
         serial_print_dec(i);
         serial_print("] @");
-        serial_print_hex((uint32_t)objs[i]);
+        serial_print_hex((unsigned int)objs[i]);
         serial_print("\n");
     }
 
@@ -100,13 +100,13 @@ void kmain(unsigned int magic, unsigned int *mbinfo) {
 
     void *reused = objpool_alloc(tasks);
     serial_print("[demo] realloc @");
-    serial_print_hex((uint32_t)reused);
+    serial_print_hex((unsigned int)reused);
     serial_print(" (deve reusar objs[0] ou objs[2])\n");
 
     // Tenta liberar ponteiro inválido
     int ret = objpool_free(tasks, (void *)0xDEADBEEF);
     serial_print("[demo] free invalido retornou ");
-    serial_print_dec((uint32_t)ret);
+    serial_print_dec((unsigned int)ret);
     serial_print(" (esperado -1)\n");
 
     // ===== FIM DEMO =====
