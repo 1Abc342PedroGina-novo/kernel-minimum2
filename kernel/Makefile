@@ -25,7 +25,7 @@ irq_stub.o: irq_stub.S
 
 pit.o: pit.c pit.h irq.h isr.h serial.h
 	$(CC) $(CFLAGS) -c pit.c -o pit.o
-
+ 
 irq.o: irq.c irq.h idt.h isr.h serial.h
 	$(CC) $(CFLAGS) -c irq.c -o irq.o
 
@@ -37,7 +37,6 @@ pmm.o: pmm.c pmm.h serial.h
 
 kernel.o: kernel.c serial.h gdt.h tss.h idt.h irq.h paging.h pit.h objpool.h pmm.h isr.h
 	$(CC) $(CFLAGS) -c kernel.c -o kernel.o
-
 
 serial.o: serial.c serial.h
 	$(CC) $(CFLAGS) -c serial.c -o serial.o
