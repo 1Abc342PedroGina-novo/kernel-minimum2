@@ -11,6 +11,12 @@ all: mykernel.elf
 boot.o: boot.S
 	$(AS) -f elf32 boot.S -o boot.o
 
+isr.o: isr.S
+	$(AS) -f elf32 isr.S -o isr.o
+
+idt.o: idt.c idt.h isr.h serial.h
+	$(CC) $(CFLAGS) -c idt.c -o idt.o
+
 kernel.o: kernel.c serial.h
 	$(CC) $(CFLAGS) -c kernel.c -o kernel.o
 
