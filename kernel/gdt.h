@@ -27,4 +27,6 @@ struct gdt_ptr {
     unsigned int base;          // endereço linear da GDT
 } __attribute__((packed));
 
+void gdt_set_tss(int idx, unsigned int base, unsigned int limit, unsigned char flags);
+
 #endif
