@@ -20,7 +20,7 @@ idt.o: idt.c idt.h isr.h serial.h
 paging.o: paging.c paging.h serial.h
 	$(CC) $(CFLAGS) -c paging.c -o paging.o
 
-irq_stubs.o: irq_stubs.S
+irq_stub.o: irq_stub.S
 	$(AS) -f elf32 irq_stubs.S -o irq_stubs.o
 
 irq.o: irq.c irq.h idt.h isr.h serial.h
