@@ -2,7 +2,7 @@
 #include "gdt.h"
 #include "serial.h"
 
-
+ 
 // ---- Estado ----
 
 #define GDT_ENTRIES 5
