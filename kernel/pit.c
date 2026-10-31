@@ -40,4 +40,10 @@ void pit_init(unsigned int hz) {
     serial_print("\n");
 }
 
-unsigned int pit_ticks(void) { return ticks; }
+uint32_t pit_ticks(void) {
+    return ticks;
+}
+
+uint32_t pit_frequency(void) {
+    return freq_hz;
+}
