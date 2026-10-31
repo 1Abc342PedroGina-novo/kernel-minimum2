@@ -7,6 +7,7 @@
 #include "paging.h"
 #include "objpool.h"
 #include "tss.h"
+#include "pmm.h"
 
 #ifndef idt_init
 extern void idt_init(void);
@@ -64,6 +65,79 @@ void kmain(unsigned int magic, unsigned int *mbinfo) {
     irq_init();
     paging_init();
 
+    
+    // ★ PMM: gerencia 4 MiB (mesmo range do identity-map)
+    serial_print("\n[pmm] === Gerenciador de Paginas Fisicas ===\n");
+    pmm_init(0x00400000, pmm_bitmap, PMM_BITMAP_MAX);   // 4 MiB
+
+    // ★ Reservar regiões em uso:
+    // - 0x0..0x100000: BIOS, VGA, etc. (1 MiB)
+    pmm_reserve(0x00000000, 0x00100000);
+    // - 0x100000..kernel_end: kernel ELF (até ~1 MiB)
+    pmm_reserve(0x00100000, 0x00180000);   // ajuste conforme o kernel real
+    // - bitmap
+    pmm_reserve((uint32_t)pmm_bitmap, (uint32_t)pmm_bitmap + PMM_BITMAP_MAX);
+    // - page directory + page table (0x108000..0x10A000)
+    pmm_reserve(0x00108000, 0x0010B000);
+    // - kernel_stack do TSS (0x10B000..0x10D000)
+    pmm_reserve(0x0010B000, 0x0010D000);
+
+    serial_print("[pmm] total=");
+    serial_print_dec(pmm_total_frames());
+    serial_print(" usado=");
+    serial_print_dec(pmm_used_frames());
+    serial_print(" livre=");
+    serial_print_dec(pmm_free_frames());
+    serial_print("\n");
+
+    // ★ Demo: aloca 10 frames
+    void *frames[10];
+    for (int i = 0; i < 10; i++) {
+        frames[i] = pmm_alloc_frame();
+        serial_print("[pmm] alloc_frame = ");
+        serial_print_hex((uint32_t)frames[i]);
+        serial_print("\n");
+    }
+
+    serial_print("[pmm] apos 10 alloc: usado=");
+    serial_print_dec(pmm_used_frames());
+    serial_print(" livre=");
+    serial_print_dec(pmm_free_frames());
+    serial_print("\n");
+
+    // ★ Libera 5
+    for (int i = 0; i < 5; i++) pmm_free_frame(frames[i]);
+
+    // ★ Realoca 3 (deve reusar os primeiros livres)
+    void *reused[3];
+    for (int i = 0; i < 3; i++) {
+        reused[i] = pmm_alloc_frame();
+        serial_print("[pmm] realloc = ");
+        serial_print_hex((uint32_t)reused[i]);
+        serial_print("\n");
+    }
+
+    // ★ Testa contíguos
+    void *block = pmm_alloc_frames(4);
+    serial_print("[pmm] alloc 4 contiguos = ");
+    serial_print_hex((uint32_t)block);
+    serial_print(" (esperado alinhado a 0x4000)\n");
+
+    // ★ Double-free e free inválido
+    int r1 = pmm_free_frame(frames[5]);
+    int r2 = pmm_free_frame(frames[5]);   // 2ª vez: double free
+    serial_print("[pmm] free valido="); serial_print_dec((uint32_t)r1);
+    serial_print(" double_free="); serial_print_dec((uint32_t)r2);
+    serial_print(" (esperado 0 e -1)\n");
+
+    serial_print("[pmm] final: total=");
+    serial_print_dec(pmm_total_frames());
+    serial_print(" usado=");
+    serial_print_dec(pmm_used_frames());
+    serial_print(" livre=");
+    serial_print_dec(pmm_free_frames());
+    serial_print("\n");
+    
     pit_init(100);
     print("Timer 100 Hz ativo.\n");
 
