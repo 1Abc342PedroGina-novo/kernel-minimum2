@@ -7,7 +7,8 @@
 #define PIT_CMD   0x43
 #define PIT_BASE  1193182   // Hz do oscilador
 
-static volatile unsigned int ticks = 0;
+volatile unsigned int ticks = 0;
+unsigned int freq_hz = 0;   // frequência REAL (após arredondamento)
 
 static void pit_tick(struct regs *r) {
     (void)r;
