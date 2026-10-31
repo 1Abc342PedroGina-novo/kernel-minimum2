@@ -2,7 +2,7 @@
 #include "idt.h"
 #include "isr.h"
 #include "serial.h"
-
+#include "irq.h"
 
 #define IDT_ENTRIES 256
 
