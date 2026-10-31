@@ -2,6 +2,7 @@
 #include "gdt.h"
 #include "serial.h"
 #include "idt.h"
+#include "irq.h"
 
 #ifndef idt_init
 extern void idt_init(void);
@@ -73,6 +74,7 @@ serial_print(" acesso_data="); serial_print_hex(g[ds >> 3].access);
 serial_print("\n");
 
       idt_init();          // ← NOVO
+      irq_init();
       paging_init();          // ← NOVO (depois de IDT, para capturar #PF)
     clear_screen();
     print("=== Kernel Minimo de Teste ===\n");
