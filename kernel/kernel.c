@@ -3,6 +3,11 @@
 #include "serial.h"
 #include "idt.h"
 
+#ifndef idt_init
+extern void idt_init(void);
+#endif
+
+
 #define VGA_WIDTH  80
 #define VGA_HEIGHT 25
 #define VGA_MEMORY ((volatile unsigned short*)0xB8000)
