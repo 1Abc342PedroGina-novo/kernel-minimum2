@@ -73,7 +73,7 @@ serial_print(" acesso_data="); serial_print_hex(g[ds >> 3].access);
 serial_print("\n");
 
       idt_init();          // ← NOVO
-    
+      paging_init();          // ← NOVO (depois de IDT, para capturar #PF)
     clear_screen();
     print("=== Kernel Minimo de Teste ===\n");
     print("Boot via Multiboot OK!\n");
