@@ -1,7 +1,7 @@
 // gdt.c - Global Descriptor Table mínima (flat model)
 #include "gdt.h"
 #include "serial.h"
-
+#include "tss.h"
  
 // ---- Estado ----
 
