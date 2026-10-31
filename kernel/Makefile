@@ -4,7 +4,7 @@ LD      = ld
 CFLAGS  = -m32 -ffreestanding -fno-pie -fno-stack-protector -Wall -Wextra -O2
 LDFLAGS = -m elf_i386 -T link.ld
 
-OBJS = boot.o kernel.o serial.o
+OBJS = boot.o kernel.o serial.o gdt.o
 
 all: mykernel.elf
 
@@ -16,6 +16,9 @@ kernel.o: kernel.c serial.h
 
 serial.o: serial.c serial.h
 	$(CC) $(CFLAGS) -c serial.c -o serial.o
+
+gdt.o: gdt.c gdt.h serial.h
+	$(CC) $(CFLAGS) -c gdt.c -o gdt.o
 
 mykernel.elf: $(OBJS) link.ld
 	$(LD) $(LDFLAGS) -o $@ $(OBJS)
