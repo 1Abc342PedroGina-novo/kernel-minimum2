@@ -6,6 +6,7 @@
 #include "pit.h"
 #include "paging.h"
 #include "objpool.h"
+#include "tss.h"
 
 #ifndef idt_init
 extern void idt_init(void);
@@ -58,6 +59,7 @@ void kmain(unsigned int magic, unsigned int *mbinfo) {
     serial_print("[boot] Kernel inicializado\n");
 
     gdt_init();
+    tss_init(); 
     idt_init();
     irq_init();
     paging_init();
