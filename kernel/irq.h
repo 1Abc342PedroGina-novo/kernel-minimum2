@@ -4,7 +4,7 @@
 #include "isr.h"
 
 void irq_init(void);
-
+void irq_handler(struct regs *r);
 // Registra um handler para uma IRQ (0..15).
 //   handler = NULL remove o handler.
 void irq_register_handler(unsigned char irq, void (*handler)(struct regs *));
