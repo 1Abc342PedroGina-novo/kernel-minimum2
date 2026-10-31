@@ -2,6 +2,10 @@
 #include "pmm.h"
 #include "serial.h"
 
+#ifndef NULL
+#define NULL ((void *)0)
+#endif
+
 #define PAGE_SIZE  4096
 #define PAGE_SHIFT 12
 
