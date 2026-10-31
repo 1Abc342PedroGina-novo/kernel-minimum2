@@ -5,7 +5,7 @@
 #include "irq.h"
 #include "pit.h"
 #include "paging.h"
-#include "objdump.h"
+#include "objpool.h"
 
 #ifndef idt_init
 extern void idt_init(void);
