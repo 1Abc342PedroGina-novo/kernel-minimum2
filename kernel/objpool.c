@@ -127,14 +127,14 @@ int objpool_free(struct objpool *pool, void *obj) {
     if (!pool || !obj) return -1;
 
     // Verifica se o ponteiro pertence a algum slab do pool
-    uintptr_t addr = (uintptr_t)obj;
+    unsigned long addr = (unsigned long)obj;
     struct slab *s = pool->slabs;
     while (s) {
         unsigned char *start = s->mem;
         unsigned char *end   = start + pool->obj_size * pool->objs_per_slab;
-        if (addr >= (uintptr_t)start && addr < (uintptr_t)end) {
+        if (addr >= (unsigned long)start && addr < (unsigned long)end) {
             // Valida alinhamento (deve ser múltiplo de obj_size a partir de start)
-            if ((addr - (uintptr_t)start) % pool->obj_size != 0) {
+            if ((addr - (unsigned long)start) % pool->obj_size != 0) {
                 serial_print("[objpool] ERRO: ponteiro desalinhado\n");
                 return -1;
             }
