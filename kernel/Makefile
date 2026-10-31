@@ -9,7 +9,7 @@ OBJS = boot.o kernel.o serial.o
 all: mykernel.elf
 
 boot.o: boot.S
-	$(AS) -f elf32 boot.asm -o boot.o
+	$(AS) -f elf32 boot.S -o boot.o
 
 kernel.o: kernel.c serial.h
 	$(CC) $(CFLAGS) -c kernel.c -o kernel.o
