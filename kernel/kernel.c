@@ -103,10 +103,10 @@ serial_print("\n");
 
     // Loop principal: lê pit_ticks() e loga uptime a cada segundo.
     // Isso prova que o contador incrementa fora do handler (thread-safe via volatile).
-    uint32_t last_report = 0;
+    unsigned int last_report = 0;
     while (1) {
-        uint32_t t = pit_ticks();
-        uint32_t secs = t / pit_frequency();
+        unsigned int t = pit_ticks();
+        unsigned int secs = t / pit_frequency();
 
         if (secs != last_report) {
             last_report = secs;
