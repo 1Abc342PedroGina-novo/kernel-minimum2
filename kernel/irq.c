@@ -97,22 +97,22 @@ void irq_init(void) {
 
     // Instala os 16 stubs na IDT com atributos de interrupt gate
     const unsigned char attr = 0x8E;
-    idt_set_gate(0x20, (uint32_t)irq0,  0x08, attr);
-    idt_set_gate(0x21, (uint32_t)irq1,  0x08, attr);
-    idt_set_gate(0x22, (uint32_t)irq2,  0x08, attr);
-    idt_set_gate(0x23, (uint32_t)irq3,  0x08, attr);
-    idt_set_gate(0x24, (uint32_t)irq4,  0x08, attr);
-    idt_set_gate(0x25, (uint32_t)irq5,  0x08, attr);
-    idt_set_gate(0x26, (uint32_t)irq6,  0x08, attr);
-    idt_set_gate(0x27, (uint32_t)irq7,  0x08, attr);
-    idt_set_gate(0x28, (uint32_t)irq8,  0x08, attr);
-    idt_set_gate(0x29, (uint32_t)irq9,  0x08, attr);
-    idt_set_gate(0x2A, (uint32_t)irq10, 0x08, attr);
-    idt_set_gate(0x2B, (uint32_t)irq11, 0x08, attr);
-    idt_set_gate(0x2C, (uint32_t)irq12, 0x08, attr);
-    idt_set_gate(0x2D, (uint32_t)irq13, 0x08, attr);
-    idt_set_gate(0x2E, (uint32_t)irq14, 0x08, attr);
-    idt_set_gate(0x2F, (uint32_t)irq15, 0x08, attr);
+    idt_set_gate(0x20, (unsigned int)irq0,  0x08, attr);
+    idt_set_gate(0x21, (unsigned int)irq1,  0x08, attr);
+    idt_set_gate(0x22, (unsigned int)irq2,  0x08, attr);
+    idt_set_gate(0x23, (unsigned int)irq3,  0x08, attr);
+    idt_set_gate(0x24, (unsigned int)irq4,  0x08, attr);
+    idt_set_gate(0x25, (unsigned int)irq5,  0x08, attr);
+    idt_set_gate(0x26, (unsigned int)irq6,  0x08, attr);
+    idt_set_gate(0x27, (unsigned int)irq7,  0x08, attr);
+    idt_set_gate(0x28, (unsigned int)irq8,  0x08, attr);
+    idt_set_gate(0x29, (unsigned int)irq9,  0x08, attr);
+    idt_set_gate(0x2A, (unsigned int)irq10, 0x08, attr);
+    idt_set_gate(0x2B, (unsigned int)irq11, 0x08, attr);
+    idt_set_gate(0x2C, (unsigned int)irq12, 0x08, attr);
+    idt_set_gate(0x2D, (unsigned int)irq13, 0x08, attr);
+    idt_set_gate(0x2E, (unsigned int)irq14, 0x08, attr);
+    idt_set_gate(0x2F, (unsigned int)irq15, 0x08, attr);
 
     // Mascara TODAS as IRQs por padrão (ninguém dispara até habilitar)
     outb(PIC1_DATA, 0xFF);
