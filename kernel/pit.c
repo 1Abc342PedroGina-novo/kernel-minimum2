@@ -47,5 +47,5 @@ unsigned int pit_ticks(void) {
 }
 
 unsigned int pit_frequency(void) {
-    return freq_hz;
+    return freq_hz ? freq_hz : 1;   // ★ NUNCA retorna 0
 }
