@@ -3,6 +3,8 @@
 #include "serial.h"
 #include "idt.h"
 #include "irq.h"
+#include "pit.h"
+#include "paging.h"
 
 #ifndef idt_init
 extern void idt_init(void);
@@ -79,20 +81,43 @@ serial_print("\n");
     clear_screen();
     print("=== Kernel Minimo de Teste ===\n");
     print("Boot via Multiboot OK!\n");
-    print("Saida VGA + Serial ativa.\n");
-    print("GDT carregada.\n");
+    print("GDT + IDT + IRQ + Paging ativas.\n");
+    print("PIT inicializando...\n");
 
     serial_print("[boot] Multiboot magic = ");
     serial_print_hex(magic);
     serial_print("\n");
-
     if (magic == 0x2BADB002)
         serial_print("[boot] Multiboot valido.\n");
-    else
-        serial_print("[boot] AVISO: magic inesperado!\n");
 
-    serial_print("[boot] Entrando em loop infinito (hlt)\n");
+    // Timer a 100 Hz
+    pit_init(100);
+    print("Timer 100 Hz ativo.\n");
 
-    while (1)
+    // Só registra o probe de teclado, NÃO desmascara IRQ1.
+    // Assim o kernel não "perde" teclas no CI.
+    // Descomente a linha abaixo para testar o teclado manualmente:
+    // irq_register_handler(1, irq1_probe); irq_clear_mask(1);
+
+    serial_print("[boot] Entrando em loop principal\n");
+
+    // Loop principal: lê pit_ticks() e loga uptime a cada segundo.
+    // Isso prova que o contador incrementa fora do handler (thread-safe via volatile).
+    uint32_t last_report = 0;
+    while (1) {
+        uint32_t t = pit_ticks();
+        uint32_t secs = t / pit_frequency();
+
+        if (secs != last_report) {
+            last_report = secs;
+            serial_print("[main] uptime ");
+            serial_print_dec(secs);
+            serial_print("s (");
+            serial_print_dec(t);
+            serial_print(" ticks)\n");
+        }
+
+        // hlt até a próxima interrupção — economiza CPU e é seguro
         __asm__ volatile ("hlt");
+    }
 }
