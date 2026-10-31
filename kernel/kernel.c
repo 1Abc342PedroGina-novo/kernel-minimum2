@@ -1,4 +1,5 @@
-// kernel.c - Kernel mínimo com saída serial
+// kernel.c
+#include "gdt.h"
 #include "serial.h"
 
 #define VGA_WIDTH  80
@@ -20,7 +21,6 @@ void clear_screen(void) {
 }
 
 void putchar(char c) {
-    // VGA
     if (c == '\n') {
         cursor_x = 0;
         cursor_y++;
@@ -34,7 +34,6 @@ void putchar(char c) {
     if (cursor_y >= VGA_HEIGHT)
         clear_screen();
 
-    // Serial (inclui '\n' para formatar o terminal)
     if (c == '\n')
         serial_putchar('\r');
     serial_putchar(c);
@@ -44,23 +43,22 @@ void print(const char *s) {
     while (*s) putchar(*s++);
 }
 
-// Protótipo (definido no boot.asm via multiboot)
 void kmain(unsigned int magic, unsigned int *mbinfo) {
     serial_init();
 
     serial_print("[boot] Kernel inicializado\n");
 
+    // Configura GDT PRIMEIRO
+    gdt_init();
+
     clear_screen();
     print("=== Kernel Minimo de Teste ===\n");
     print("Boot via Multiboot OK!\n");
     print("Saida VGA + Serial ativa.\n");
+    print("GDT carregada.\n");
 
     serial_print("[boot] Multiboot magic = ");
     serial_print_hex(magic);
-    serial_print("\n");
-
-    serial_print("[boot] mbinfo = ");
-    serial_print_hex((unsigned int)mbinfo);
     serial_print("\n");
 
     if (magic == 0x2BADB002)
