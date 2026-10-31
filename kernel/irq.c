@@ -20,15 +20,6 @@
 
 // ---- I/O helpers ----
 
-static inline void irq_outb(unsigned short port, unsigned char val) {
-    __asm__ volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
-}
-
-static inline uint8_t irq_inb(unsigned short port) {
-    uint8_t ret;
-    __asm__ volatile ("inb %1, %0" : "=a"(ret) : "Nd"(port));
-    return ret;
-}
 
 static inline void io_wait(void) {
     // Escrever em porta não usada ~ pequena espera
