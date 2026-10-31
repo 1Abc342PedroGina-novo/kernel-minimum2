@@ -31,6 +31,6 @@ int pmm_release(unsigned int start, unsigned int end);
 // Estatísticas
 unsigned int pmm_total_frames(void);
 unsigned int pmm_used_frames(void);
-unsigned int pmm_free_frames(void);
+unsigned int pmm_free_count(void);
 
 #endif
