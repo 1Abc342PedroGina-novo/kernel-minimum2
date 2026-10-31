@@ -1,6 +1,7 @@
 // kernel.c
 #include "gdt.h"
 #include "serial.h"
+#include "idt.h"
 
 #define VGA_WIDTH  80
 #define VGA_HEIGHT 25
