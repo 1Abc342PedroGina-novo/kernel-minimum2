@@ -8,6 +8,8 @@
 #include "objpool.h"
 #include "tss.h"
 #include "pmm.h"
+#define PMM_BITMAP_MAX (128 * 1024)
+static unsigned char pmm_bitmap[PMM_BITMAP_MAX] __attribute__((aligned(4096)));
 
 #ifndef idt_init
 extern void idt_init(void);
