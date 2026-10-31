@@ -190,4 +190,4 @@ void pmm_free_frames(void *addr, unsigned int n) {
 
 unsigned int pmm_total_frames(void) { return total_frames; }
 unsigned int pmm_used_frames(void)  { return used_frames; }
-unsigned int pmm_free_frames(void)  { return total_frames - used_frames; }
+unsigned int pmm_free_count(void)   { return total_frames - used_frames; }   // ← RENOMEADO
