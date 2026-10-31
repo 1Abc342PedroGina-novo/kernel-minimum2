@@ -76,7 +76,7 @@ void kmain(unsigned int magic, unsigned int *mbinfo) {
     // - 0x100000..kernel_end: kernel ELF (até ~1 MiB)
     pmm_reserve(0x00100000, 0x00180000);   // ajuste conforme o kernel real
     // - bitmap
-    pmm_reserve((uint32_t)pmm_bitmap, (uint32_t)pmm_bitmap + PMM_BITMAP_MAX);
+    pmm_reserve((unsigned int)pmm_bitmap, (unsigned int)pmm_bitmap + PMM_BITMAP_MAX);
     // - page directory + page table (0x108000..0x10A000)
     pmm_reserve(0x00108000, 0x0010B000);
     // - kernel_stack do TSS (0x10B000..0x10D000)
@@ -95,7 +95,7 @@ void kmain(unsigned int magic, unsigned int *mbinfo) {
     for (int i = 0; i < 10; i++) {
         frames[i] = pmm_alloc_frame();
         serial_print("[pmm] alloc_frame = ");
-        serial_print_hex((uint32_t)frames[i]);
+        serial_print_hex((unsigned int)frames[i]);
         serial_print("\n");
     }
 
@@ -113,21 +113,21 @@ void kmain(unsigned int magic, unsigned int *mbinfo) {
     for (int i = 0; i < 3; i++) {
         reused[i] = pmm_alloc_frame();
         serial_print("[pmm] realloc = ");
-        serial_print_hex((uint32_t)reused[i]);
+        serial_print_hex((unsigned int)reused[i]);
         serial_print("\n");
     }
 
     // ★ Testa contíguos
     void *block = pmm_alloc_frames(4);
     serial_print("[pmm] alloc 4 contiguos = ");
-    serial_print_hex((uint32_t)block);
+    serial_print_hex((unsigned int)block);
     serial_print(" (esperado alinhado a 0x4000)\n");
 
     // ★ Double-free e free inválido
     int r1 = pmm_free_frame(frames[5]);
     int r2 = pmm_free_frame(frames[5]);   // 2ª vez: double free
-    serial_print("[pmm] free valido="); serial_print_dec((uint32_t)r1);
-    serial_print(" double_free="); serial_print_dec((uint32_t)r2);
+    serial_print("[pmm] free valido="); serial_print_dec((unsigned int)r1);
+    serial_print(" double_free="); serial_print_dec((unsigned int)r2);
     serial_print(" (esperado 0 e -1)\n");
 
     serial_print("[pmm] final: total=");
