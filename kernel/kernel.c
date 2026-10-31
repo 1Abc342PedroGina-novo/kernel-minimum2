@@ -65,6 +65,8 @@ serial_print(" acesso_code="); serial_print_hex(g[cs >> 3].access);
 serial_print(" DS="); serial_print_hex(ds);
 serial_print(" acesso_data="); serial_print_hex(g[ds >> 3].access);
 serial_print("\n");
+
+      idt_init();          // ← NOVO
     
     clear_screen();
     print("=== Kernel Minimo de Teste ===\n");
