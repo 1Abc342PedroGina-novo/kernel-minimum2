@@ -21,7 +21,7 @@ paging.o: paging.c paging.h serial.h
 	$(CC) $(CFLAGS) -c paging.c -o paging.o
 
 irq_stub.o: irq_stub.S
-	$(AS) -f elf32 irq_stubs.S -o irq_stubs.o
+	$(AS) -f elf32 irq_stub.S -o irq_stub.o
 
 irq.o: irq.c irq.h idt.h isr.h serial.h
 	$(CC) $(CFLAGS) -c irq.c -o irq.o
