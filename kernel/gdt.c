@@ -96,7 +96,9 @@ void gdt_init(void) {
                   GDT_ACCESS_CODE_DATA | GDT_ACCESS_RW,
                   GDT_GRAN_4K | GDT_GRAN_32BIT);
 
-    serial_print("[gdt] GDT carregada (5 entradas, flat, base=0, limite=4GiB)\n");
+    serial_print("[gdt] GDT carregada (");
+serial_print_dec(GDT_ENTRIES);          // ← em vez de "5"
+serial_print(" entradas, flat, base=0, limite=4GiB)\n");
     serial_print("[gdt] endereco base = ");
     serial_print_hex(gp.base);
     serial_print(", limite = ");
