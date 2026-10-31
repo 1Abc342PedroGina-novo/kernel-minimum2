@@ -117,6 +117,11 @@ void isr_handler(struct regs *r) {
         return;
     }
 
+    serial_print("[isr] entrou com int_no=");
+serial_print_hex(r->int_no);
+serial_print("\n");
+
+    
     // Exceção real (0x00..0x1F): dump e halt
     serial_print("\n[exception] ");
     if (r->int_no < 32) {
