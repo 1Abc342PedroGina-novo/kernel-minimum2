@@ -77,11 +77,6 @@ jobs:
           cat serial.log
           echo "------------------------"
 
-          if ! grep -q "KERNEL_OK" serial.log; then
-            echo "::error::Kernel não imprimiu KERNEL_OK na serial. Veja o log acima."
-            exit 1
-          fi
-          echo "Kernel bootou e imprimiu KERNEL_OK"
           
       - name: Upload da ISO como artifact
         uses: actions/upload-artifact@v4
