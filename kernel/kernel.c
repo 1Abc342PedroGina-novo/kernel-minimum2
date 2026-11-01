@@ -198,6 +198,54 @@ pmm_free_frame((void *)phys1);   // devolve o físico também
 
 // ★ Dump final
 mem_dump();
+
+    // ★ Inicializa o heap: base 0x30000000, max 256 MiB
+heap_init(0x30000000, 0x10000000);
+
+serial_print("\n[heap] === Teste heap_alloc ===\n");
+
+// 1. Aloca 100 bytes — NÃO deve mapear página ainda (bump no início da página)
+void *a = heap_alloc(100);
+serial_print("[heap] a = ");
+serial_print_hex((uint32_t)a);
+serial_print(" (esperado 0x30000000)\n");
+
+// 2. Aloca 10000 bytes — deve mapear 3 páginas (10000 + 100 ~ 10100 > 4096)
+void *b = heap_alloc(10000);
+serial_print("[heap] b = ");
+serial_print_hex((uint32_t)b);
+serial_print(" (esperado 0x30000068)\n");
+
+// 3. Aloca 5000 bytes — bump avança, mapeamento ja cobre
+void *c = heap_alloc(5000);
+serial_print("[heap] c = ");
+serial_print_hex((uint32_t)c);
+serial_print("\n");
+
+// 4. Escreve em todos — prova que está mapeado
+for (uint32_t i = 0; i < 100; i++) ((uint8_t *)a)[i] = (uint8_t)i;
+for (uint32_t i = 0; i < 10000; i++) ((uint8_t *)b)[i] = (uint8_t)(i & 0xFF);
+for (uint32_t i = 0; i < 5000; i++) ((uint8_t *)c)[i] = (uint8_t)(i & 0xFF);
+
+// 5. Lê de volta e verifica
+int ok = 1;
+for (uint32_t i = 0; i < 100; i++) if (((uint8_t *)a)[i] != (uint8_t)i) { ok = 0; break; }
+for (uint32_t i = 0; i < 10000; i++) if (((uint8_t *)b)[i] != (uint8_t)(i & 0xFF)) { ok = 0; break; }
+for (uint32_t i = 0; i < 5000; i++) if (((uint8_t *)c)[i] != (uint8_t)(i & 0xFF)) { ok = 0; break; }
+
+serial_print("[heap] escrita+leitura: ");
+serial_print(ok ? "OK" : "FALHOU");
+serial_print("\n");
+
+// 6. heap_free_last(c) — desfaz o último
+int r = heap_free_last(c, 5000);
+serial_print("[heap] free_last(c) = ");
+serial_print_dec((uint32_t)r);
+serial_print(" (esperado 0)\n");
+
+// 7. Dump
+heap_dump();
+vmm_dump();
     
     pit_init(100);
     print("Timer 100 Hz ativo.\n");
