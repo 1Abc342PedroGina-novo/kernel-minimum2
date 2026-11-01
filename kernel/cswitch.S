@@ -30,6 +30,7 @@ context_switch:
     mov esp, [edx + 16]
 
     sti
+    nop 
     ; ★ Retorna para new->eip (ponto de retorno do call)
     mov eax, [edx + 20]
     push eax
