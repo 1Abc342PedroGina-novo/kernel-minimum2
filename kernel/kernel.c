@@ -11,6 +11,7 @@
 #include "mm_info.h"
 #include "vmm.h"
 #include "task.h"
+#include "heap.h"
 
 #define PMM_BITMAP_MAX (128 * 1024)
 static unsigned char pmm_bitmap[PMM_BITMAP_MAX] __attribute__((aligned(4096)));
