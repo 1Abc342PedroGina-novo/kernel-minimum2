@@ -16,7 +16,7 @@
 
 #define MAX_PROCESSES 16
 #define MAX_THREADS   64
-
+void thread_yield(void);
 // ---- Estruturas ----
 
 struct thread_context {
