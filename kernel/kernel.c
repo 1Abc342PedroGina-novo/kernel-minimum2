@@ -80,9 +80,6 @@ serial_print("[pmm] kernel_end = ");
 serial_print_hex((unsigned int)&_kernel_end);
 serial_print("\n");
 
-// 3. Defesa em profundidade: recursos que podem sair do kernel no futuro
-pmm_reserve((unsigned int)pmm_bitmap, (unsigned int)pmm_bitmap + PMM_BITMAP_MAX);
-pmm_reserve((unsigned int)kernel_stack_addr, (unsigned int)kernel_stack_addr + KERNEL_STACK_SIZE);
 
     serial_print("[pmm] total=");
     serial_print_dec(pmm_total_frames());
