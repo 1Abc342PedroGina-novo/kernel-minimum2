@@ -36,7 +36,7 @@ struct thread {
     unsigned long long exec_start_tsc;     // TSC quando começou a rodar
     unsigned long long exec_min_cycles;    // ciclos mínimos (0.75 ms)
     unsigned int wakeup_tick;      // para sleep
-
+unsigned long long pending_delta;   // ★ ticks acumulados
     struct task *proc;
     struct thread_context ctx;
 
