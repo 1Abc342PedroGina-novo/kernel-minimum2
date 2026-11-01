@@ -20,16 +20,6 @@ context_switch:
     mov ecx, [esp]
     mov [eax + 20], ecx
 
-    ; Salva eflags de old
-    pushfd
-    pop ecx
-    mov [eax + 24], ecx
-
-    ; Salva cs de old
-    xor ecx, ecx
-    mov cx, cs
-    mov [eax + 28], ecx
-
     ; Carrega callee-saved de new
     mov edi, [edx + 0]
     mov esi, [edx + 4]
@@ -39,12 +29,7 @@ context_switch:
     ; Carrega esp de new
     mov esp, [edx + 16]
 
-    ; ★ Habilita interrupções ANTES do iret
-    ; (sti é atrasado por 1 instrução, então o iret já roda com IF=1)
-    sti
-
-    ; ★ Salta para new->eip com new->cs e new->eflags
-    push dword [edx + 24]   ; eflags
-    push dword [edx + 28]   ; cs
-    push dword [edx + 20]   ; eip
-    iret
+    ; ★ Retorna para new->eip (ponto de retorno do call)
+    mov eax, [edx + 20]
+    push eax
+    ret
