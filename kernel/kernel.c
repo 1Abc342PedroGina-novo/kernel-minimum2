@@ -134,6 +134,68 @@ serial_print("\n");
     serial_print_dec(pmm_free_count());   // ← pmm_free_count()
     serial_print("\n");
 
+    // ★ Inicializa VMM (após PMM, antes de usar vmm_map)
+vmm_init();
+
+// ★ Dump do estado inicial
+mem_dump();
+
+// ★ Teste 1: mapear uma página física nova em endereço virtual alto
+serial_print("\n[vmm] === Teste 1: map 0x10000000 -> phys novo ===\n");
+uint32_t phys1 = (uint32_t)pmm_alloc_frame();
+if (phys1) {
+    if (vmm_map(0x10000000, phys1, VMM_PRESENT | VMM_WRITE) == 0) {
+        serial_print("[vmm] mapped 0x10000000 -> ");
+        serial_print_hex(phys1);
+        serial_print("\n");
+        serial_print("[vmm] get_phys(0x10000000) = ");
+        serial_print_hex(vmm_get_phys(0x10000000));
+        serial_print(" (esperado ");
+        serial_print_hex(phys1);
+        serial_print(")\n");
+        // Escreve e lê de volta
+        volatile uint32_t *p = (uint32_t *)0x10000000;
+        *p = 0xCAFEBABE;
+        serial_print("[vmm] escreveu 0xCAFEBABE, leu ");
+        serial_print_hex(*p);
+        serial_print("\n");
+    }
+}
+
+// ★ Teste 2: mapear 4 páginas contíguas em 0x20000000
+serial_print("\n[vmm] === Teste 2: map 4 paginas em 0x20000000 ===\n");
+uint32_t phys2 = (uint32_t)pmm_alloc_frames(4);
+if (phys2) {
+    if (vmm_map_range(0x20000000, phys2, 4, VMM_PRESENT | VMM_WRITE) == 0) {
+        serial_print("[vmm] mapped 4 paginas: 0x20000000 -> ");
+        serial_print_hex(phys2);
+        serial_print("\n");
+        for (uint32_t i = 0; i < 4; i++) {
+            volatile uint32_t *p = (uint32_t *)(0x20000000 + i * 4096);
+            *p = 0xA0000000 + i;
+        }
+        for (uint32_t i = 0; i < 4; i++) {
+            volatile uint32_t *p = (uint32_t *)(0x20000000 + i * 4096);
+            serial_print("[vmm]   [");
+            serial_print_dec(i);
+            serial_print("] = ");
+            serial_print_hex(*p);
+            serial_print("\n");
+        }
+    }
+}
+
+// ★ Teste 3: desmapear
+serial_print("\n[vmm] === Teste 3: unmap 0x10000000 ===\n");
+vmm_unmap(0x10000000);
+serial_print("[vmm] get_phys(0x10000000) apos unmap = ");
+serial_print_hex(vmm_get_phys(0x10000000));
+serial_print(" (esperado 0)\n");
+pmm_free_frame((void *)phys1);   // devolve o físico também
+
+// ★ Dump final
+mem_dump();
+    
     pit_init(100);
     print("Timer 100 Hz ativo.\n");
 
