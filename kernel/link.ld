@@ -1,9 +1,8 @@
-/* link.ld */
 ENTRY(_start)
 
 SECTIONS
 {
-    . = 1M;                 /* carrega em 1 MiB */
+    . = 1M;
 
     .text BLOCK(4K) : ALIGN(4K)
     {
@@ -26,4 +25,7 @@ SECTIONS
         *(COMMON)
         *(.bss)
     }
+
+    /* ★ Fim do kernel (inclui .bss) */
+    _kernel_end = .;
 }
