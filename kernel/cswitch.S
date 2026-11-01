@@ -3,35 +3,39 @@ section .text
 global context_switch
 
 context_switch:
-    ; Pega os argumentos da pilha atual
-    mov eax, [esp + 4]     ; eax = &old_task->esp
-    mov edx, [esp + 8]     ; edx = &new_task->esp
+    ; 1. Captura os ponteiros das estruturas passados por argumento
+    mov eax, [esp + 4]     ; eax = &old_thread->ctx
+    mov edx, [esp + 8]     ; edx = &new_thread->ctx
 
-    ; 1. Salva o contexto da tarefa antiga na PRÓPRIA PILHA dela
-    push ebp
-    push ebx
-    push esi
-    push edi
+    ; 2. Salva os registradores callee-saved da tarefa antiga
+    mov [eax + 0],  edi
+    mov [eax + 4],  esi
+    mov [eax + 8],  ebp
+    mov [eax + 12], ebx
 
-    ; Salva o ESP atual na estrutura da tarefa antiga
-    ; (O endereço de retorno EIP já foi salvo na pilha automaticamente pelo 'call')
-    mov [eax], esp
+    ; Salva o ESP da tarefa antiga exatamente como estava ANTES de mudar
+    mov [eax + 16], esp
+
+    ; Salva o endereço de retorno (EIP) que o C colocou na pilha
+    mov ecx, [esp]
+    mov [eax + 20], ecx
 
     ; ==========================================================
-    ; NESTE PONTO OCORRE A TROCA EFETIVA DE TAREFAS
+    ; TROCA EFETIVA DE CONTEXTO (MUDANÇA DE PILHA)
     ; ==========================================================
 
-    ; 2. Carrega o ESP da nova tarefa
-    mov esp, [edx]
+    ; 3. Carrega o ESP da NOVA tarefa (Agora apontamos para a pilha dela)
+    mov esp, [edx + 16]
 
-    ; 3. Restaura o contexto da nova tarefa (desempilhando)
-    pop edi
-    pop esi
-    pop ebx
-    pop ebp
+    ; 4. Restaura os registradores callee-saved da nova tarefa
+    mov edi, [edx + 0]
+    mov esi, [edx + 4]
+    mov ebp, [edx + 8]
+    mov ebx, [edx + 12]
 
-    ; Habilita as interrupções com segurança antes de voltar
+    ; 5. Habilita as interrupções com o STI de forma segura
     sti
 
-    ; Retorna para o EIP da nova tarefa (que já está no topo da nova pilha!)
-    ret
+    ; 6. Salta para o ponto onde a nova tarefa tinha parado (EIP)
+    ; Não usamos 'push' e 'ret' aqui para não violar o topo da nova pilha
+    jmp [edx + 20]
