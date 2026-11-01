@@ -6,7 +6,7 @@
 #include "tss.h"
 #include "serial.h"
 
-#define MAX_RUN_MS  150   // ★ preempção por tempo: 150 ms
+#define MAX_RUN_MS(prio)  ((prio) * 5)   // 5 ms por unidade de prioridade
 #define TSC_FREQ_HZ 1000000000ULL
 
 static struct task *process_list = 0;
@@ -87,8 +87,8 @@ static struct thread *pick_next(void) {
         struct thread *t = p->threads;
         while (t) {
             if (t->state == THREAD_READY) {
-                // ★ Se prev rodou > 150 ms, ignora prev
-                if (t == current_thread && current_thread->run_time > MAX_RUN_MS) {
+                // ★ Ignora prev se rodou > MAX_RUN_MS(prio)
+                if (t == current_thread && t->run_time >= MAX_RUN_MS(t->priority)) {
                     t = t->next;
                     continue;
                 }
@@ -253,17 +253,30 @@ void thread_yield(void) {
 }
 
 // ★ Scheduler Round-Robin com prioridade
+// ============================================================
+// task_schedule — Round-Robin com prioridade e preempção
+// ============================================================
+// Regras:
+//   1. Maior prioridade vence
+//   2. Empate → menor run_time (round-robin)
+//   3. Se current rodou >= MAX_RUN_MS(prio) → força troca
+//
+// Correção crítica: prev->state = THREAD_READY ANTES de pick_next,
+// senão threads em THREAD_RUNNING nunca são escolhidas de novo.
+// ============================================================
 void task_schedule(void) {
     if (!current_thread) return;
 
     unsigned long long now_tick = pit_ticks();
 
-    // Acorda threads bloqueadas
+    // ---- 1. Acorda threads bloqueadas cujo sleep acabou ----
     struct task *p = process_list;
     while (p) {
         struct thread *t = p->threads;
         while (t) {
-            if (t->state == THREAD_BLOCKED && t->wakeup_tick && now_tick >= t->wakeup_tick) {
+            if (t->state == THREAD_BLOCKED &&
+                t->wakeup_tick &&
+                now_tick >= t->wakeup_tick) {
                 t->state = THREAD_READY;
                 t->wakeup_tick = 0;
             }
@@ -272,35 +285,38 @@ void task_schedule(void) {
         p = p->next;
     }
 
+    // ---- 2. Atualiza run_time de prev ----
     struct thread *prev = current_thread;
-
-    // ★ Atualiza run_time de prev
     unsigned long long now_tsc = rdtsc();
     prev->run_time = tsc_to_ms(now_tsc - prev->exec_start_tsc);
 
-    // Escolhe próxima
+    // ---- 3. ★ MARCA prev COMO READY (para ser elegível) ----
+    prev->state = THREAD_READY;
+
+    // ---- 4. Escolhe próxima ----
     struct thread *next = pick_next();
 
-    // Log
+    // ---- 5. Log de diagnóstico (primeiros 60) ----
     static unsigned int sched_count = 0;
-    if (++sched_count <= 30) {
+    if (++sched_count <= 60) {
         serial_print("[sched] cur=");
         serial_print_dec(prev->tid);
         serial_print(" run_ms=");
-        serial_print_dec64(prev->run_time);
+        serial_print_dec(prev->run_time);
         serial_print(" next=");
         serial_print_dec(next ? next->tid : 999);
         serial_print("\n");
     }
 
+    // ---- 6. Ninguém pronto → mantém prev ----
     if (!next) {
         prev->state = THREAD_RUNNING;
         return;
     }
 
+    // ---- 7. Mesma thread → mantém (reset run_time se > MAX) ----
     if (next == prev) {
-        // Mesma thread continua — mas se run_time > 150ms, zera (já rodou o suficiente)
-        if (prev->run_time > MAX_RUN_MS) {
+        if (prev->run_time >= MAX_RUN_MS(prev->priority)) {
             prev->run_time = 0;
             prev->exec_start_tsc = rdtsc();
         }
@@ -308,12 +324,11 @@ void task_schedule(void) {
         return;
     }
 
-    // Troca
+    // ---- 8. Troca de contexto ----
     next->state = THREAD_RUNNING;
     current_thread = next;
     current_process = next->proc;
 
-    // Zera run_time da nova thread
     next->run_time = 0;
     next->exec_start_tsc = rdtsc();
 
@@ -324,11 +339,11 @@ void task_schedule(void) {
 
     context_switch(&prev->ctx, &next->ctx);
 
-    // Restaura prev
+    // ---- 9. Retomamos prev — restaurar ----
     current_thread = prev;
     current_process = prev->proc;
     prev->state = THREAD_RUNNING;
-    prev->exec_start_tsc = rdtsc();   // ★ reseta o início de execução
+    prev->exec_start_tsc = rdtsc();   // reseta o início de execução
     tss_set_kernel_stack(prev->kernel_stack_top);
     if (prev->proc->page_directory) {
         __asm__ volatile ("mov %0, %%cr3" : : "r"(prev->proc->page_directory) : "memory");
