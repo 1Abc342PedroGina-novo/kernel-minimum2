@@ -10,6 +10,7 @@
 #include "pmm.h"
 #include "mm_info.h"
 #include "vmm.h"
+#include "task.h"
 
 #define PMM_BITMAP_MAX (128 * 1024)
 static unsigned char pmm_bitmap[PMM_BITMAP_MAX] __attribute__((aligned(4096)));
@@ -38,6 +39,25 @@ void clear_screen(void) {
     cursor_x = cursor_y = 0;
 }
 
+static void pit_handler_with_schedule(struct regs *r) {
+    (void)r;
+    // Conta ticks
+    static unsigned int ticks = 0;
+    ticks++;
+    if (ticks % 100 == 0) {
+        serial_print("[pit] tick ");
+        serial_print_dec(ticks);
+        serial_print(" (pid=");
+        serial_print_dec(task_current_pid());
+        serial_print(", tid=");
+        serial_print_dec(task_current_tid());
+        serial_print(")\n");
+    }
+
+    // Scheduler
+    task_schedule();
+}
+
 void putchar(char c) {
     if (c == '\n') {
         cursor_x = 0;
@@ -61,234 +81,124 @@ void print(const char *s) {
     while (*s) putchar(*s++);
 }
 
+// Thread que conta e loga periodicamente
+static void worker_loop(void *arg) {
+    unsigned int id = (unsigned int)arg;
+    unsigned int counter = 0;
+
+    while (1) {
+        counter++;
+        if ((counter % 1000000) == 0) {
+            serial_print("[worker ");
+            serial_print_dec(id);
+            serial_print("] pid=");
+            serial_print_dec(task_current_pid());
+            serial_print(" tid=");
+            serial_print_dec(task_current_tid());
+            serial_print(" counter=");
+            serial_print_dec(counter);
+            serial_print("\n");
+        }
+    }
+}
+
+// Callback do PIT: agenda
+static void scheduler_callback(void) {
+    task_schedule();
+}
+
+// ===== MAIN =====
+
 void kmain(unsigned int magic, unsigned int *mbinfo) {
+    (void)magic;
+    (void)mbinfo;
+
     serial_init();
     serial_print("[boot] Kernel inicializado\n");
 
+    // 1. Init de baixo nível
     gdt_init();
     tss_init();
     idt_init();
     irq_init();
     paging_init();
 
+    // 2. PMM
     serial_print("\n[pmm] === Gerenciador de Paginas Fisicas ===\n");
     pmm_init(0x00400000, pmm_bitmap, PMM_BITMAP_MAX);
-
-// 1. BIOS + VGA (primeiro MiB inteiro) — sempre reservar
-pmm_reserve(0x00000000, 0x00100000);
-
-// 2. Kernel inteiro (ELF + .bss) — usa o símbolo do linker
-pmm_reserve(0x00100000, (unsigned int)&_kernel_end);
-serial_print("[pmm] kernel_end = ");
-serial_print_hex((unsigned int)&_kernel_end);
-serial_print("\n");
-
-
+    pmm_reserve(0x00000000, 0x00100000);
+    pmm_reserve(0x00100000, (unsigned int)&_kernel_end);
+    serial_print("[pmm] kernel_end = ");
+    serial_print_hex((unsigned int)&_kernel_end);
+    serial_print("\n");
     serial_print("[pmm] total=");
     serial_print_dec(pmm_total_frames());
     serial_print(" usado=");
     serial_print_dec(pmm_used_frames());
     serial_print(" livre=");
-    serial_print_dec(pmm_free_count());   // ← pmm_free_count()
+    serial_print_dec(pmm_free_count());
     serial_print("\n");
 
-    void *frames[10];
-    for (int i = 0; i < 10; i++) {
-        frames[i] = pmm_alloc_frame();
-        serial_print("[pmm] alloc_frame = ");
-        serial_print_hex((unsigned int)frames[i]);
-        serial_print("\n");
-    }
+    // 3. VMM
+    vmm_init();
 
-    serial_print("[pmm] apos 10 alloc: usado=");
-    serial_print_dec(pmm_used_frames());
-    serial_print(" livre=");
-    serial_print_dec(pmm_free_count());   // ← pmm_free_count()
-    serial_print("\n");
+    // 4. Heap
+    heap_init(0x30000000, 0x10000000);
+    serial_print("[heap] base=0x30000000 max=256 MiB\n");
 
-    for (int i = 0; i < 5; i++) pmm_free_frame(frames[i]);
-
-    void *reused[3];
-    for (int i = 0; i < 3; i++) {
-        reused[i] = pmm_alloc_frame();
-        serial_print("[pmm] realloc = ");
-        serial_print_hex((unsigned int)reused[i]);
-        serial_print("\n");
-    }
-
-    void *block = pmm_alloc_frames(4);
-    serial_print("[pmm] alloc 4 contiguos = ");
-    serial_print_hex((unsigned int)block);
-    serial_print(" (esperado alinhado a 0x4000)\n");
-
-    int r1 = pmm_free_frame(frames[5]);
-    int r2 = pmm_free_frame(frames[5]);
-    serial_print("[pmm] free valido=");
-    serial_print_dec((unsigned int)r1);
-    serial_print(" double_free=");
-    serial_print_dec((unsigned int)r2);
-    serial_print(" (esperado 0 e -1)\n");
-
-    serial_print("[pmm] final: total=");
-    serial_print_dec(pmm_total_frames());
-    serial_print(" usado=");
-    serial_print_dec(pmm_used_frames());
-    serial_print(" livre=");
-    serial_print_dec(pmm_free_count());   // ← pmm_free_count()
-    serial_print("\n");
-
-    // ★ Inicializa VMM (após PMM, antes de usar vmm_map)
-vmm_init();
-
-// ★ Dump do estado inicial
-mem_dump();
-
-// ★ Teste 1: mapear uma página física nova em endereço virtual alto
-serial_print("\n[vmm] === Teste 1: map 0x10000000 -> phys novo ===\n");
-unsigned int phys1 = (unsigned int)pmm_alloc_frame();
-if (phys1) {
-    if (vmm_map(0x10000000, phys1, VMM_PRESENT | VMM_WRITE) == 0) {
-        serial_print("[vmm] mapped 0x10000000 -> ");
-        serial_print_hex(phys1);
-        serial_print("\n");
-        serial_print("[vmm] get_phys(0x10000000) = ");
-        serial_print_hex(vmm_get_phys(0x10000000));
-        serial_print(" (esperado ");
-        serial_print_hex(phys1);
-        serial_print(")\n");
-        // Escreve e lê de volta
-        volatile unsigned int *p = (unsigned int *)0x10000000;
-        *p = 0xCAFEBABE;
-        serial_print("[vmm] escreveu 0xCAFEBABE, leu ");
-        serial_print_hex(*p);
-        serial_print("\n");
-    }
-}
-
-// ★ Teste 2: mapear 4 páginas contíguas em 0x20000000
-serial_print("\n[vmm] === Teste 2: map 4 paginas em 0x20000000 ===\n");
-unsigned int phys2 = (unsigned int)pmm_alloc_frames(4);
-if (phys2) {
-    if (vmm_map_range(0x20000000, phys2, 4, VMM_PRESENT | VMM_WRITE) == 0) {
-        serial_print("[vmm] mapped 4 paginas: 0x20000000 -> ");
-        serial_print_hex(phys2);
-        serial_print("\n");
-        for (unsigned int i = 0; i < 4; i++) {
-            volatile unsigned int *p = (unsigned int *)(0x20000000 + i * 4096);
-            *p = 0xA0000000 + i;
-        }
-        for (unsigned int i = 0; i < 4; i++) {
-            volatile unsigned int *p = (unsigned int *)(0x20000000 + i * 4096);
-            serial_print("[vmm]   [");
-            serial_print_dec(i);
-            serial_print("] = ");
-            serial_print_hex(*p);
-            serial_print("\n");
-        }
-    }
-}
-
-// ★ Teste 3: desmapear
-serial_print("\n[vmm] === Teste 3: unmap 0x10000000 ===\n");
-vmm_unmap(0x10000000);
-serial_print("[vmm] get_phys(0x10000000) apos unmap = ");
-serial_print_hex(vmm_get_phys(0x10000000));
-serial_print(" (esperado 0)\n");
-pmm_free_frame((void *)phys1);   // devolve o físico também
-
-// ★ Dump final
-mem_dump();
-
-    // ★ Inicializa o heap: base 0x30000000, max 256 MiB
-heap_init(0x30000000, 0x10000000);
-
-serial_print("\n[heap] === Teste heap_alloc ===\n");
-
-// 1. Aloca 100 bytes — NÃO deve mapear página ainda (bump no início da página)
-void *a = heap_alloc(100);
-serial_print("[heap] a = ");
-serial_print_hex((unsigned int)a);
-serial_print(" (esperado 0x30000000)\n");
-
-// 2. Aloca 10000 bytes — deve mapear 3 páginas (10000 + 100 ~ 10100 > 4096)
-void *b = heap_alloc(10000);
-serial_print("[heap] b = ");
-serial_print_hex((unsigned int)b);
-serial_print(" (esperado 0x30000068)\n");
-
-// 3. Aloca 5000 bytes — bump avança, mapeamento ja cobre
-void *c = heap_alloc(5000);
-serial_print("[heap] c = ");
-serial_print_hex((unsigned int)c);
-serial_print("\n");
-
-// 4. Escreve em todos — prova que está mapeado
-for (unsigned int i = 0; i < 100; i++) ((unsigned char *)a)[i] = (unsigned char)i;
-for (unsigned int i = 0; i < 10000; i++) ((unsigned char *)b)[i] = (unsigned char)(i & 0xFF);
-for (unsigned int i = 0; i < 5000; i++) ((unsigned char *)c)[i] = (unsigned char)(i & 0xFF);
-
-// 5. Lê de volta e verifica
-int ok = 1;
-for (unsigned int i = 0; i < 100; i++) if (((unsigned char *)a)[i] != (unsigned char)i) { ok = 0; break; }
-for (unsigned int i = 0; i < 10000; i++) if (((unsigned char *)b)[i] != (unsigned char)(i & 0xFF)) { ok = 0; break; }
-for (unsigned int i = 0; i < 5000; i++) if (((unsigned char *)c)[i] != (unsigned char)(i & 0xFF)) { ok = 0; break; }
-
-serial_print("[heap] escrita+leitura: ");
-serial_print(ok ? "OK" : "FALHOU");
-serial_print("\n");
-
-// 6. heap_free_last(c) — desfaz o último
-int r = heap_free_last(c, 5000);
-serial_print("[heap] free_last(c) = ");
-serial_print_dec((unsigned int)r);
-serial_print(" (esperado 0)\n");
-
-// 7. Dump
-heap_dump();
-vmm_dump();
-    
+    // 5. PIT (timer) — SEM callback ainda
     pit_init(100);
     print("Timer 100 Hz ativo.\n");
 
-    // ===== Object Pool =====
+    // 6. Object pool (demo rápido)
     serial_print("\n[demo] === Object Pool ===\n");
-    struct objpool *tasks = objpool_create(64, 64);
-    if (!tasks) {
-        serial_print("[demo] FALHOU criar pool\n");
-        while (1) __asm__ volatile ("hlt");
+    struct objpool *tasks_pool = objpool_create(64, 64);
+    if (tasks_pool) {
+        void *o = objpool_alloc(tasks_pool);
+        serial_print("[demo] objpool alloc @");
+        serial_print_hex((unsigned int)o);
+        serial_print("\n");
+        objpool_free(tasks_pool, o);
     }
 
-    void *objs[5];
-    for (int i = 0; i < 5; i++) {
-        objs[i] = objpool_alloc(tasks);
-        serial_print("[demo] alloc[");
-        serial_print_dec(i);
-        serial_print("] @");
-        serial_print_hex((unsigned int)objs[i]);
+    // 7. ★ Task manager (processos + threads + scheduler)
+    serial_print("\n[task] === Inicializando gerenciador de tarefas ===\n");
+    task_init();
+
+    // 8. ★ Registra callback do PIT para agendar
+    pit_set_callback(scheduler_callback);
+
+    // 9. ★ Cria 2 processos + 2 threads
+    serial_print("\n[task] === Criando processos e threads ===\n");
+
+    unsigned int pid1 = process_create();
+    if (pid1) {
+        unsigned int tid1 = thread_create(pid1, worker_loop, (void *)1);
+        serial_print("[main] processo pid=");
+        serial_print_dec(pid1);
+        serial_print(" thread tid=");
+        serial_print_dec(tid1);
         serial_print("\n");
     }
 
-    serial_print("[demo] total=");
-    serial_print_dec(objpool_total(tasks));
-    serial_print(" used=");
-    serial_print_dec(objpool_used(tasks));
-    serial_print(" free=");
-    serial_print_dec(objpool_free_count(tasks));
-    serial_print("\n");
+    unsigned int pid2 = process_create();
+    if (pid2) {
+        unsigned int tid2 = thread_create(pid2, worker_loop, (void *)2);
+        serial_print("[main] processo pid=");
+        serial_print_dec(pid2);
+        serial_print(" thread tid=");
+        serial_print_dec(tid2);
+        serial_print("\n");
+    }
 
-    objpool_free(tasks, objs[0]);
-    objpool_free(tasks, objs[2]);
+    // 10. Dump inicial
+    task_dump();
 
-    void *reused_obj = objpool_alloc(tasks);
-    serial_print("[demo] realloc @");
-    serial_print_hex((unsigned int)reused_obj);
-    serial_print(" (deve reusar objs[0] ou objs[2])\n");
+    // 11. Loop principal — só hlt, o scheduler roda no IRQ0
+    serial_print("\n[boot] Scheduler ativo. Loop principal (hlt).\n");
+    serial_print("[boot] idle thread sera interrompida pelo timer.\n\n");
 
-    int ret = objpool_free(tasks, (void *)0xDEADBEEF);
-    serial_print("[demo] free invalido retornou ");
-    serial_print_dec((unsigned int)ret);
-    serial_print(" (esperado -1)\n");
-
-    serial_print("\n[boot] Entrando em loop principal\n");
-    // ... loop ...
+    while (1) {
+        __asm__ volatile ("hlt");
+    }
 }
