@@ -32,4 +32,12 @@ void vmm_dump_entry(unsigned int virt);        // dump de 1 entrada (PD + PT)
 unsigned int vmm_mapped_pages(void);           // total de páginas mapeadas
 unsigned int vmm_page_tables_used(void);       // PTs alocadas
 
+// Aloca 'n' frames físicos do PMM e mapeia em virt..virt+n*4K.
+// Retorna virt em sucesso, 0 em erro.
+// Se virt == 0, o VMM escolhe um endereço livre (busca linear).
+unsigned int vmm_alloc(unsigned int virt, unsigned int n, unsigned int flags);
+
+// Desmapeia 'n' páginas a partir de virt e libera o físico de volta ao PMM.
+// Retorna 0 em sucesso.
+int vmm_free(unsigned int virt, unsigned int n);
 #endif
