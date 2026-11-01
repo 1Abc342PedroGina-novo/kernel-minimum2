@@ -91,7 +91,7 @@ void task_init(void) {
 // ---- process_create ----
 
 unsigned int process_create(void) {
-    // Aloca struct do processo
+    // 1. Aloca struct do processo
     struct task *p = (struct task *)pmm_alloc_frame();
     if (!p) {
         serial_print("[task] ERRO: sem memoria para processo\n");
@@ -104,50 +104,49 @@ unsigned int process_create(void) {
     p->threads = 0;
     p->thread_count = 0;
 
-    // Aloca page directory próprio (cópia do kernel)
-    unsigned int *pd = (unsigned int *)vmm_alloc(0, 1, VMM_PRESENT | VMM_WRITE);
-    if (!pd) {
-        serial_print("[task] ERRO: sem PD para processo\n");
+    // 2. Aloca 1 frame físico para o page directory
+    void *pd_phys = pmm_alloc_frame();
+    if (!pd_phys) {
+        serial_print("[task] ERRO: sem frame para PD\n");
         pmm_free_frame(p);
         return 0;
     }
-    // Copia o PD do kernel (para ter o identity-map + kernel space)
-    // O CR3 atual aponta para o PD do VMM.
-    unsigned int *kernel_pd = (unsigned int *)(vmm_get_phys(0x30000000) & ~0xFFF);   // hack: pega algo mapeado
-    (void)kernel_pd;
-    // Na verdade, pega o PD do vmm (vmm_get_pd) — mas vmm não expõe.
-    // Solução: usar vmm_map para mapear o PD alocado no espaço virtual,
-    // e copiar o conteúdo do PD atual.
 
-    // Simplificação: mapeia o PD alocado em 0x40000000 temporariamente
+    // 3. Mapeia o PD em um endereço virtual temporário para escrever
+    //    (0x40000000 é livre no espaço virtual do kernel)
     unsigned int pd_virt = 0x40000000;
-    vmm_map(pd_virt, (unsigned int)pd, VMM_PRESENT | VMM_WRITE);
+    if (vmm_map(pd_virt, (unsigned int)pd_phys, VMM_PRESENT | VMM_WRITE) != 0) {
+        serial_print("[task] ERRO: nao conseguiu mapear PD temporario\n");
+        pmm_free_frame(pd_phys);
+        pmm_free_frame(p);
+        return 0;
+    }
 
-    // Copia o PD atual (CR3) para pd_virt
+    // 4. Copia o PD do kernel (CR3 atual) para pd_virt
     unsigned int cr3;
-__asm__ volatile ("mov %%cr3, %0" : "=r"(cr3));
-unsigned int *src = (unsigned int *)(cr3 & ~0xFFF);
+    __asm__ volatile ("mov %%cr3, %0" : "=r"(cr3));
+    unsigned int *src = (unsigned int *)(cr3 & ~0xFFF);
     unsigned int *dst = (unsigned int *)pd_virt;
     for (unsigned int i = 0; i < 1024; i++) dst[i] = src[i];
 
-    // Desmapeia temporário
+    // 5. Desmapeia o temporário
     vmm_unmap(pd_virt);
 
-    p->page_directory = (unsigned int *)(unsigned int)pd;
+    // 6. Guarda o FÍSICO do PD (para CR3)
+    p->page_directory = (unsigned int *)pd_phys;
 
-    // Insere na lista
+    // 7. Insere na lista
     p->next = process_list->next;
     process_list->next = p;
 
     serial_print("[task] processo criado pid=");
     serial_print_dec(p->pid);
-    serial_print(" pd=");
-    serial_print_hex((unsigned int)pd);
+    serial_print(" pd_phys=");
+    serial_print_hex((unsigned int)pd_phys);
     serial_print("\n");
 
     return p->pid;
 }
-
 // ---- thread_create ----
 
 unsigned int thread_create(unsigned int pid, void (*entry)(void *), void *arg) {
