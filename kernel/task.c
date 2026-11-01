@@ -244,6 +244,8 @@ unsigned int thread_create_prio(unsigned int pid, void (*entry)(void *), void *a
     t->ctx.ebx = 0;
     t->ctx.esp = (unsigned int)sp;
     t->ctx.eip = (unsigned int)entry;
+    t->ctx.eflags = 0x202;   // ★ IF=1, bit 1 reservado (sempre 1)
+    t->ctx.cs = 0x08;        // ★ kernel code selector
 
     // Insere na lista do processo
     t->next = p->threads;
