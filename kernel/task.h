@@ -23,6 +23,8 @@ struct thread_context {
     unsigned int edi, esi, ebp, ebx;
     unsigned int esp;
     unsigned int eip;
+    unsigned int    eflags;
+    unsigned int    cs;
 };
 
 struct thread {
