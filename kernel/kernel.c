@@ -91,12 +91,6 @@ static void worker_loop(void *arg) {
 
     while (1) {
         counter++;
-
-        // ★ Cede a CPU a cada 1M iterações (cooperativo)
-        if ((counter % 1000000) == 0) {
-            thread_yield();
-        }
-
         if ((counter - last_report) >= 50000000) {
             last_report = counter;
             serial_print("[worker ");
