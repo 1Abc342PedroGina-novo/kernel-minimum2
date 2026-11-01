@@ -333,16 +333,11 @@ void thread_yield(void) {
 void task_schedule(void) {
     if (!current_thread) return;
 
-        if (current_thread->state == THREAD_RUNNING &&
-        !thread_exec_min_done(current_thread)) {
-        return;
-    }
-
     unsigned long long now = pit_ticks();
     unsigned long long delta = now - last_sched_tick;
     last_sched_tick = now;
 
-    // 1. Acorda threads bloqueadas cujo sleep acabou
+    // 1. Acorda threads bloqueadas
     struct task *p = process_list;
     while (p) {
         struct thread *t = p->threads;
@@ -356,17 +351,16 @@ void task_schedule(void) {
         p = p->next;
     }
 
-    // 2. Atualiza vruntime da thread atual (que acabou de rodar 'delta' ticks)
+    // 2. ★ SEMPRE atualiza vruntime da thread atual
+    //    (não importa o estado — ela rodou 'delta' ticks)
     struct thread *prev = current_thread;
-    if (prev->state == THREAD_RUNNING) {
-        update_vruntime(prev, delta);
-        prev->state = THREAD_READY;
-    }
+    update_vruntime(prev, delta);
+    prev->state = THREAD_READY;
 
-    // 3. Escolhe a próxima (menor vruntime)
+    // 3. Escolhe próxima
     struct thread *next = pick_next();
 
-    // ★ Log de diagnóstico (primeiros 30)
+    // ★ Log de diagnóstico
     static unsigned int sched_count = 0;
     if (++sched_count <= 30) {
         serial_print("[sched] cur=");
@@ -380,11 +374,9 @@ void task_schedule(void) {
         serial_print("\n");
     }
 
-    // 4. Se ninguém pronto, mantém a atual
+    // 4. Se ninguém, mantém atual
     if (!next) {
-        if (prev->state == THREAD_READY) {
-            prev->state = THREAD_RUNNING;
-        }
+        prev->state = THREAD_RUNNING;
         return;
     }
 
@@ -393,7 +385,7 @@ void task_schedule(void) {
         return;
     }
 
-    // 5. Troca de contexto
+    // 5. Troca
     next->state = THREAD_RUNNING;
     current_thread = next;
     current_process = next->proc;
@@ -403,14 +395,12 @@ void task_schedule(void) {
         __asm__ volatile ("mov %0, %%cr3" : : "r"(next->proc->page_directory) : "memory");
     }
 
-    // ★ context_switch salva prev, carrega next.
-    // Quando prev for RETOMADA, este ponto continua executando.
-    // Nesse momento, current_thread aponta para next (errado!) — restaurar para prev.
     context_switch(&prev->ctx, &next->ctx);
 
-    // ★ CORREÇÃO CRÍTICA: restaurar current_thread para prev
+    // 6. Restaura prev
     current_thread = prev;
     current_process = prev->proc;
+    prev->state = THREAD_RUNNING;      // ★ marca como RUNNING
     tss_set_kernel_stack(prev->kernel_stack_top);
     if (prev->proc->page_directory) {
         __asm__ volatile ("mov %0, %%cr3" : : "r"(prev->proc->page_directory) : "memory");
