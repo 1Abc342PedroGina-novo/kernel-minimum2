@@ -49,3 +49,22 @@ unsigned int pit_ticks(void) {
 unsigned int pit_frequency(void) {
     return freq_hz ? freq_hz : 1;   // ★ NUNCA retorna 0
 }
+
+static void (*pit_callback)(void) = 0;
+
+void pit_set_callback(void (*cb)(void)) {
+    pit_callback = cb;
+}
+
+static void pit_tick(struct regs *r) {
+    (void)r;
+    ticks++;
+
+    if (ticks <= 5 || (freq_hz && ticks % freq_hz == 0)) {
+        serial_print("[pit] tick ");
+        serial_print_dec(ticks);
+        serial_print("\n");
+    }
+
+    if (pit_callback) pit_callback();
+}
