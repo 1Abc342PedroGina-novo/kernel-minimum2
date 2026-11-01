@@ -196,5 +196,5 @@ unsigned int pmm_total_frames(void) { return total_frames; }
 unsigned int pmm_used_frames(void)  { return used_frames; }
 unsigned int pmm_free_count(void)   { return total_frames - used_frames; }   // ← RENOMEADO
 
-uint32_t *pmm_get_bitmap(void) { return bitmap; }
-uint32_t  pmm_get_bitmap_words(void) { return bitmap_words; }
+unsigned int *pmm_get_bitmap(void) { return bitmap; }
+unsigned int  pmm_get_bitmap_words(void) { return bitmap_words; }
