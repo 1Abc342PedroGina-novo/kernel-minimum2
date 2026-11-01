@@ -297,7 +297,7 @@ void task_schedule(void) {
     last_sched_tick = now;
 
     // 1. Acorda threads bloqueadas cujo sleep acabou
-    struct process *p = process_list;
+    struct task *p = process_list;
     while (p) {
         struct thread *t = p->threads;
         while (t) {
