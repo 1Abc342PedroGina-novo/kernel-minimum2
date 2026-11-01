@@ -85,6 +85,7 @@ void print(const char *s) {
 // Thread que conta e loga periodicamente
 // worker com prioridade visível
 static void worker_loop(void *arg) {
+        __asm__ volatile ("sti");   
     unsigned int id = (unsigned int)arg;
     unsigned int counter = 0;
     unsigned int last_report = 0;
