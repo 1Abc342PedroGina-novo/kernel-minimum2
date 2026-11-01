@@ -253,3 +253,103 @@ void vmm_dump_entry(unsigned int virt) {
 
 unsigned int vmm_mapped_pages(void) { return mapped_pages; }
 unsigned int vmm_page_tables_used(void) { return pt_count; }
+
+// ---- vmm_alloc / vmm_free ----
+
+// Procura um range virtual livre de 'n' páginas a partir de 'from'.
+// Retorna o virt encontrado, ou 0.
+static unsigned int find_free_range(unsigned int from, unsigned int n) {
+    // Não permite virt < 4 MiB (identity-map do kernel)
+    if (from < 0x00400000) from = 0x00400000;
+    // Alinha a página
+    from = (from + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+
+    unsigned int end_limit = 0x40000000;   // limite superior (1 GiB) — ajuste se quiser
+    unsigned int v = from;
+
+    while (v + n * PAGE_SIZE <= end_limit) {
+        int ok = 1;
+        for (unsigned int i = 0; i < n; i++) {
+            if (vmm_get_phys(v + i * PAGE_SIZE) != 0) {
+                ok = 0;
+                // Pula para a próxima página não mapeada
+                v = (v + (i + 1) * PAGE_SIZE + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+                break;
+            }
+        }
+        if (ok) return v;
+        if (v >= end_limit) break;
+        v += PAGE_SIZE;
+    }
+    return 0;
+}
+
+unsigned int vmm_alloc(unsigned int virt, unsigned int n, unsigned int flags) {
+    if (!page_directory) return 0;
+    if (n == 0) return 0;
+
+    // 1. Escolhe o virtual
+    if (virt == 0) {
+        virt = find_free_range(0x30000000, n);   // começa no heap
+        if (!virt) {
+            serial_print("[vmm] OOM: sem range virtual livre\n");
+            return 0;
+        }
+    }
+    if (virt & (PAGE_SIZE - 1)) return 0;
+
+    // 2. Aloca N frames físicos contíguos
+    unsigned int phys = (unsigned int)pmm_alloc_frames(n);
+    if (!phys) {
+        serial_print("[vmm] OOM: sem frames fisicos contiguos\n");
+        return 0;
+    }
+
+    // 3. Mapeia
+    if (vmm_map_range(virt, phys, n, flags) != 0) {
+        serial_print("[vmm] ERRO: map_range falhou, devolvendo fisico\n");
+        pmm_free_frames((void *)phys, n);
+        return 0;
+    }
+
+    serial_print("[vmm] alloc ");
+    serial_print_dec(n);
+    serial_print(" paginas: ");
+    serial_print_hex(virt);
+    serial_print(" -> ");
+    serial_print_hex(phys);
+    serial_print("\n");
+
+    return virt;
+}
+
+int vmm_free(unsigned int virt, unsigned int n) {
+    if (!page_directory || n == 0) return -1;
+    if (virt & (PAGE_SIZE - 1)) return -1;
+
+    // 1. Coleta os físicos (antes de desmapear)
+    unsigned int phys0 = vmm_get_phys(virt);
+    if (!phys0) {
+        serial_print("[vmm] free: virt nao mapeada ");
+        serial_print_hex(virt);
+        serial_print("\n");
+        return -1;
+    }
+
+    // 2. Desmapeia
+    vmm_unmap_range(virt, n);
+
+    // 3. Libera o físico
+    // (assume que os frames eram contíguos — o que vmm_alloc garante)
+    pmm_free_frames((void *)phys0, n);
+
+    serial_print("[vmm] free ");
+    serial_print_dec(n);
+    serial_print(" paginas: ");
+    serial_print_hex(virt);
+    serial_print(" (phys ");
+    serial_print_hex(phys0);
+    serial_print(")\n");
+
+    return 0;
+}
