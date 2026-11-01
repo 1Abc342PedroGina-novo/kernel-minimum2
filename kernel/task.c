@@ -124,7 +124,9 @@ unsigned int process_create(void) {
     vmm_map(pd_virt, (unsigned int)pd, VMM_PRESENT | VMM_WRITE);
 
     // Copia o PD atual (CR3) para pd_virt
-    unsigned int *src = (unsigned int *)(__builtin_ia32_read_cr3() & ~0xFFF);
+    unsigned int cr3;
+__asm__ volatile ("mov %%cr3, %0" : "=r"(cr3));
+unsigned int *src = (unsigned int *)(cr3 & ~0xFFF);
     unsigned int *dst = (unsigned int *)pd_virt;
     for (unsigned int i = 0; i < 1024; i++) dst[i] = src[i];
 
