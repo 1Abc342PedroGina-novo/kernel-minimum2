@@ -55,4 +55,5 @@ irq_common:
 
     popa
     add esp, 8         ; descarta int_no e err_code
+    sti
     iret
