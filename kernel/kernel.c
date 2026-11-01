@@ -83,30 +83,48 @@ void print(const char *s) {
 }
 
 // Thread que conta e loga periodicamente
+// worker com prioridade visível
 static void worker_loop(void *arg) {
-    unsigned int id = (unsigned int)arg;
-    unsigned int counter = 0;
+    uint32_t id = (uint32_t)arg;
+    uint32_t counter = 0;
+    uint32_t last_report = 0;
 
     while (1) {
         counter++;
-        if ((counter % 1000000) == 0) {
+        if ((counter - last_report) >= 50000000) {
+            last_report = counter;
             serial_print("[worker ");
             serial_print_dec(id);
-            serial_print("] pid=");
+            serial_print("] counter=");
+            serial_print_dec(counter);
+            serial_print(" pid=");
             serial_print_dec(task_current_pid());
             serial_print(" tid=");
             serial_print_dec(task_current_tid());
-            serial_print(" counter=");
-            serial_print_dec(counter);
             serial_print("\n");
         }
     }
 }
 
-// Callback do PIT: agenda
+// ===== CALLBACK DO PIT =====
+// Roda a cada tick (100 Hz). Agenda + loga a cada 100 ticks (1 s).
 static void scheduler_callback(void) {
+    static uint32_t tick = 0;
+    tick++;
+
+    if (tick % 100 == 0) {
+        serial_print("[sched] tick ");
+        serial_print_dec(tick);
+        serial_print(" cur=pid");
+        serial_print_dec(task_current_pid());
+        serial_print("/tid");
+        serial_print_dec(task_current_tid());
+        serial_print("\n");
+    }
+
     task_schedule();
 }
+
 
 // ===== MAIN =====
 
@@ -162,42 +180,55 @@ void kmain(unsigned int magic, unsigned int *mbinfo) {
         objpool_free(tasks_pool, o);
     }
 
-    // 7. ★ Task manager (processos + threads + scheduler)
+    // 7. Task manager (processos + threads + scheduler)
     serial_print("\n[task] === Inicializando gerenciador de tarefas ===\n");
     task_init();
 
-    // 8. ★ Registra callback do PIT para agendar
+    // 8. Registra callback do PIT para agendar
     pit_set_callback(scheduler_callback);
 
-    // 9. ★ Cria 2 processos + 2 threads
-    serial_print("\n[task] === Criando processos e threads ===\n");
+    // 9. Cria 3 processos + 3 threads com prioridades diferentes
+    serial_print("\n[task] === Criando processos e threads (CFS) ===\n");
 
-    unsigned int pid1 = process_create();
-    if (pid1) {
-        unsigned int tid1 = thread_create(pid1, worker_loop, (void *)1);
-        serial_print("[main] processo pid=");
-        serial_print_dec(pid1);
-        serial_print(" thread tid=");
-        serial_print_dec(tid1);
-        serial_print("\n");
+    // prio 1 (câmera lenta)
+    uint32_t pid_low = process_create();
+    if (pid_low) {
+        uint32_t tid = thread_create_prio(pid_low, worker_loop, (void *)1, 1);
+        serial_print("[main] pid=");
+        serial_print_dec(pid_low);
+        serial_print(" tid=");
+        serial_print_dec(tid);
+        serial_print(" prio=1 (lento)\n");
     }
 
-    unsigned int pid2 = process_create();
-    if (pid2) {
-        unsigned int tid2 = thread_create(pid2, worker_loop, (void *)2);
-        serial_print("[main] processo pid=");
-        serial_print_dec(pid2);
-        serial_print(" thread tid=");
-        serial_print_dec(tid2);
-        serial_print("\n");
+    // prio 16 (baseline)
+    uint32_t pid_mid = process_create();
+    if (pid_mid) {
+        uint32_t tid = thread_create_prio(pid_mid, worker_loop, (void *)2, 16);
+        serial_print("[main] pid=");
+        serial_print_dec(pid_mid);
+        serial_print(" tid=");
+        serial_print_dec(tid);
+        serial_print(" prio=16 (normal)\n");
+    }
+
+    // prio 32 (super-velocidade)
+    uint32_t pid_high = process_create();
+    if (pid_high) {
+        uint32_t tid = thread_create_prio(pid_high, worker_loop, (void *)3, 32);
+        serial_print("[main] pid=");
+        serial_print_dec(pid_high);
+        serial_print(" tid=");
+        serial_print_dec(tid);
+        serial_print(" prio=32 (rapido)\n");
     }
 
     // 10. Dump inicial
     task_dump();
 
     // 11. Loop principal — só hlt, o scheduler roda no IRQ0
-    serial_print("\n[boot] Scheduler ativo. Loop principal (hlt).\n");
-    serial_print("[boot] idle thread sera interrompida pelo timer.\n\n");
+    serial_print("\n[boot] Scheduler CFS ativo. Loop principal (hlt).\n");
+    serial_print("[boot] esperado: worker 3 >> worker 2 >> worker 1\n\n");
 
     while (1) {
         __asm__ volatile ("hlt");
