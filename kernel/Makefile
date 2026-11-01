@@ -4,7 +4,7 @@ LD      = ld
 CFLAGS  = -m32 -ffreestanding -fno-pie -fno-stack-protector -Wall -Wextra -O2
 LDFLAGS = -m elf_i386 --allow-multiple-definition -T link.ld
 
-OBJS = boot.o kernel.o serial.o gdt.o idt.o isr.o  paging.o irq_stub.o irq.o pit.o objpool.o tss.o pmm.o vmm.o mm_info.o
+OBJS = boot.o kernel.o serial.o gdt.o idt.o isr.o  paging.o irq_stub.o irq.o pit.o objpool.o tss.o pmm.o vmm.o mm_info.o heap.o
 
 all: mykernel.elf
 
@@ -38,10 +38,13 @@ pmm.o: pmm.c pmm.h serial.h
 vmm.o: vmm.c vmm.h pmm.h serial.h
 	$(CC) $(CFLAGS) -c vmm.c -o vmm.o
 
+heap.o: heap.c heap.h vmm.h serial.h
+	$(CC) $(CFLAGS) -c heap.c -o heap.o
+
 mm_info.o: mm_info.c mm_info.h pmm.h vmm.h serial.h
 	$(CC) $(CFLAGS) -c mm_info.c -o mm_info.o
 
-kernel.o: kernel.c serial.h gdt.h tss.h idt.h irq.h paging.h pit.h objpool.h pmm.h vmm.h mm_info.h isr.h link.ld
+kernel.o: kernel.c serial.h gdt.h tss.h idt.h irq.h paging.h pit.h objpool.h pmm.h vmm.h mm_info.h isr.h heap.h link.ld
 	$(CC) $(CFLAGS) -c kernel.c -o kernel.o
 
 serial.o: serial.c serial.h
