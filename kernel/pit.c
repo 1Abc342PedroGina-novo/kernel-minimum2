@@ -13,12 +13,14 @@ unsigned int freq_hz = 0;   // frequência REAL (após arredondamento)
 static void pit_tick(struct regs *r) {
     (void)r;
     ticks++;
-    // loga esporadicamente para o CI
-    if (ticks <= 5 || ticks % 100 == 0) {
+
+    if (ticks <= 5 || (freq_hz && ticks % freq_hz == 0)) {
         serial_print("[pit] tick ");
         serial_print_dec(ticks);
         serial_print("\n");
     }
+
+    if (pit_callback) pit_callback();
 }
 
 void pit_init(unsigned int hz) {
@@ -56,15 +58,4 @@ void pit_set_callback(void (*cb)(void)) {
     pit_callback = cb;
 }
 
-static void pit_tick(struct regs *r) {
-    (void)r;
-    ticks++;
 
-    if (ticks <= 5 || (freq_hz && ticks % freq_hz == 0)) {
-        serial_print("[pit] tick ");
-        serial_print_dec(ticks);
-        serial_print("\n");
-    }
-
-    if (pit_callback) pit_callback();
-}
