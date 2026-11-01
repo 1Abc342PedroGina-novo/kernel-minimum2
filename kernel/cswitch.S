@@ -3,35 +3,35 @@ section .text
 global context_switch
 
 context_switch:
-    mov eax, [esp + 4]     ; old
-    mov edx, [esp + 8]     ; new
+    ; Pega os argumentos da pilha atual
+    mov eax, [esp + 4]     ; eax = &old_task->esp
+    mov edx, [esp + 8]     ; edx = &new_task->esp
 
-    ; Salva callee-saved de old
-    mov [eax + 0], edi
-    mov [eax + 4], esi
-    mov [eax + 8], ebp
-    mov [eax + 12], ebx
+    ; 1. Salva o contexto da tarefa antiga na PRÓPRIA PILHA dela
+    push ebp
+    push ebx
+    push esi
+    push edi
 
-    ; Salva esp de old (antes do call)
-    lea ecx, [esp + 12]
-    mov [eax + 16], ecx
+    ; Salva o ESP atual na estrutura da tarefa antiga
+    ; (O endereço de retorno EIP já foi salvo na pilha automaticamente pelo 'call')
+    mov [eax], esp
 
-    ; Salva eip de old (endereço de retorno)
-    mov ecx, [esp]
-    mov [eax + 20], ecx
+    ; ==========================================================
+    ; NESTE PONTO OCORRE A TROCA EFETIVA DE TAREFAS
+    ; ==========================================================
 
-    ; Carrega callee-saved de new
-    mov edi, [edx + 0]
-    mov esi, [edx + 4]
-    mov ebp, [edx + 8]
-    mov ebx, [edx + 12]
+    ; 2. Carrega o ESP da nova tarefa
+    mov esp, [edx]
 
-    ; Carrega esp de new
-    mov esp, [edx + 16]
+    ; 3. Restaura o contexto da nova tarefa (desempilhando)
+    pop edi
+    pop esi
+    pop ebx
+    pop ebp
 
+    ; Habilita as interrupções com segurança antes de voltar
     sti
-    nop 
-    ; ★ Retorna para new->eip (ponto de retorno do call)
-    mov eax, [edx + 20]
-    push eax
+
+    ; Retorna para o EIP da nova tarefa (que já está no topo da nova pilha!)
     ret
