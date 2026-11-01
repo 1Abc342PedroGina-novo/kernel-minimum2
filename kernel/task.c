@@ -254,7 +254,7 @@ unsigned int thread_create_prio(unsigned int pid, void (*entry)(void *), void *a
     t->entry = entry;
     t->arg = arg;
     t->wakeup_tick = 0;
-
+t->pending_delta = 0;
     unsigned int *stack_base;
     unsigned int stack_top = alloc_kernel_stack(&stack_base);
     if (!stack_top) {
@@ -321,10 +321,7 @@ void thread_sleep(unsigned int ticks) {
 }
 
 void thread_yield(void) {
-    // ★ Força a troca (ignora o tempo mínimo)
-    current_thread->exec_min_cycles = 0;
-    task_schedule();
-    current_thread->exec_min_cycles = MS_TO_CYCLES(EXEC_MIN_MS);
+    task_schedule();   // ★ só isso
 }
 
 
@@ -337,7 +334,7 @@ void task_schedule(void) {
     unsigned long long delta = now - last_sched_tick;
     last_sched_tick = now;
 
-    // 1. Acorda threads bloqueadas
+    // 1. Acorda threads bloqueadas cujo sleep acabou
     struct task *p = process_list;
     while (p) {
         struct thread *t = p->threads;
@@ -351,27 +348,20 @@ void task_schedule(void) {
         p = p->next;
     }
 
-    // 2. ★ SEMPRE atualiza vruntime da thread atual
-    //    (não importa o estado — ela rodou 'delta' ticks)
+    // 2. ★ Acumula delta no prev e atualiza vruntime
     struct thread *prev = current_thread;
-    update_vruntime(prev, delta);
+    prev->pending_delta += delta;
+
+    if (prev->pending_delta > 0) {
+        update_vruntime(prev, prev->pending_delta);
+        prev->pending_delta = 0;
+    }
     prev->state = THREAD_READY;
 
-    // 3. Escolhe próxima
+    // 3. Escolhe próxima (menor vruntime)
     struct thread *next = pick_next();
 
-        serial_print("[sched] cur=");
-    serial_print_dec(prev ? prev->tid : 999);
-    serial_print(" vrt_cur=");
-    serial_print_dec64(prev ? prev->vruntime : 0);
-    serial_print(" next=");
-    serial_print_dec(next ? next->tid : 999);
-    serial_print(" vrt_next=");
-    serial_print_dec64(next ? next->vruntime : 0);
-    serial_print("\n");
-    // ...
-
-    // ★ Log de diagnóstico
+    // ★ Log de diagnóstico (primeiros 30)
     static unsigned int sched_count = 0;
     if (++sched_count <= 30) {
         serial_print("[sched] cur=");
@@ -385,7 +375,7 @@ void task_schedule(void) {
         serial_print("\n");
     }
 
-    // 4. Se ninguém, mantém atual
+    // 4. Se ninguém pronto, mantém atual
     if (!next) {
         prev->state = THREAD_RUNNING;
         return;
@@ -396,7 +386,7 @@ void task_schedule(void) {
         return;
     }
 
-    // 5. Troca
+    // 5. Troca de contexto
     next->state = THREAD_RUNNING;
     current_thread = next;
     current_process = next->proc;
@@ -408,10 +398,10 @@ void task_schedule(void) {
 
     context_switch(&prev->ctx, &next->ctx);
 
-    // 6. Restaura prev
+    // 6. Retomamos prev — restaurar current_thread
     current_thread = prev;
     current_process = prev->proc;
-    prev->state = THREAD_RUNNING;      // ★ marca como RUNNING
+    prev->state = THREAD_RUNNING;
     tss_set_kernel_stack(prev->kernel_stack_top);
     if (prev->proc->page_directory) {
         __asm__ volatile ("mov %0, %%cr3" : : "r"(prev->proc->page_directory) : "memory");
