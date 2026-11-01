@@ -29,6 +29,7 @@ context_switch:
     ; Carrega esp de new
     mov esp, [edx + 16]
 
+    sti
     ; ★ Retorna para new->eip (ponto de retorno do call)
     mov eax, [edx + 20]
     push eax
