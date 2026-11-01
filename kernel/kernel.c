@@ -8,6 +8,9 @@
 #include "objpool.h"
 #include "tss.h"
 #include "pmm.h"
+#include "mm_info.h"
+#include "vmm.h"
+
 #define PMM_BITMAP_MAX (128 * 1024)
 static unsigned char pmm_bitmap[PMM_BITMAP_MAX] __attribute__((aligned(4096)));
 extern unsigned char _kernel_end;
