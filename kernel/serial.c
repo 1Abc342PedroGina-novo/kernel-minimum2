@@ -13,7 +13,7 @@ unsigned char inb(unsigned short port) {
     return ret;
 }
 
-void serial_print_dec64(uint64_t value) {
+void serial_print_dec64(unsigned long long value) {
     char buf[21];
     int i = 0;
     if (value == 0) { serial_putchar('0'); return; }
