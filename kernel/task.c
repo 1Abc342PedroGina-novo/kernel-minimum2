@@ -57,7 +57,7 @@ static unsigned int alloc_kernel_stack(unsigned int **out_base) {
 static inline unsigned long long rdtsc(void) {
     unsigned int lo, hi;
     __asm__ volatile ("rdtsc" : "=a"(lo), "=d"(hi));
-    return ((uint64_t)hi << 32) | lo;
+    return ((unsigned long long)hi << 32) | lo;
 }
 
 // Atualiza vruntime da thread (CFS)
