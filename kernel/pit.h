@@ -7,5 +7,5 @@ void pit_init(unsigned int frequency_hz);
 
 // Retorna o número de ticks desde pit_init().
 unsigned int pit_ticks(void);
-
+void pit_set_callback(void (*cb)(void));
 #endif
