@@ -13,6 +13,17 @@ unsigned char inb(unsigned short port) {
     return ret;
 }
 
+void serial_print_dec64(uint64_t value) {
+    char buf[21];
+    int i = 0;
+    if (value == 0) { serial_putchar('0'); return; }
+    while (value > 0) {
+        buf[i++] = '0' + (uint64_t)(value % 10);
+        value /= 10;
+    }
+    while (i-- > 0) serial_putchar(buf[i]);
+}
+
 void serial_init(void) {
     outb(COM1 + 1, 0x00); // desabilita interrupções
     outb(COM1 + 3, 0x80); // habilita DLAB
