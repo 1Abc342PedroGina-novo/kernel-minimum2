@@ -4,6 +4,7 @@
 #include "vmm.h"
 #include "pit.h"
 #include "serial.h"
+#include "tss.h"
 
 // ---- Estado global ----
 
@@ -19,8 +20,8 @@ static struct thread  idle_thread;
 
 // ---- Helpers ----
 
-static void memset8(void *p, uint8_t v, unsigned int n) {
-    uint8_t *b = (uint8_t *)p;
+static void memset8(void *p, unsigned char v, unsigned int n) {
+    unsigned char *b = (unsigned char *)p;
     for (unsigned int i = 0; i < n; i++) b[i] = v;
 }
 
