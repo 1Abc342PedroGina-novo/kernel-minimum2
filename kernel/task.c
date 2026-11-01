@@ -46,6 +46,21 @@ static unsigned int alloc_kernel_stack(unsigned int **out_base) {
 
 // Atualiza vruntime de uma thread que rodou 'delta_ticks' com prioridade 'prio'.
 // Fórmula: vruntime += delta * (SCALE / prio)
+// ★ Converte ms para ciclos de CPU (TSC)
+#define TSC_FREQ_HZ  1000000000ULL   // 1 GHz (ajuste conforme seu CPU real)
+#define MS_TO_CYCLES(ms) ((ms) * TSC_FREQ_HZ / 1000)
+
+// Tempo mínimo de execução: 0.75 ms
+#define EXEC_MIN_MS  1               // arredonda para 1 ms (mínimo prático)
+
+// Lê o TSC
+static inline unsigned long long rdtsc(void) {
+    unsigned int lo, hi;
+    __asm__ volatile ("rdtsc" : "=a"(lo), "=d"(hi));
+    return ((uint64_t)hi << 32) | lo;
+}
+
+// Atualiza vruntime da thread (CFS)
 static void update_vruntime(struct thread *t, unsigned long long delta_ticks) {
     unsigned int prio = t->priority;
     if (prio < THREAD_PRIO_MIN) prio = THREAD_PRIO_MIN;
@@ -53,6 +68,20 @@ static void update_vruntime(struct thread *t, unsigned long long delta_ticks) {
 
     t->vruntime += delta_ticks * (VRUNTIME_SCALE / prio);
     t->real_time += delta_ticks;
+}
+
+// ★ Verifica se a thread atual já cumpriu o tempo mínimo
+static int thread_exec_min_done(struct thread *t) {
+    if (!t || t->exec_min_cycles == 0) return 1;   // sem mínimo → OK
+   unsigned long long now = rdtsc();
+    return (now - t->exec_start_tsc) >= t->exec_min_cycles;
+}
+
+// ★ Reseta o início de execução (chamado quando a thread começa a rodar)
+static void thread_exec_begin(struct thread *t) {
+    if (!t) return;
+    t->exec_start_tsc = rdtsc();
+    t->exec_min_cycles = MS_TO_CYCLES(EXEC_MIN_MS);
 }
 
 // ---- CFS: escolha da próxima thread ----
@@ -219,6 +248,8 @@ unsigned int thread_create_prio(unsigned int pid, void (*entry)(void *), void *a
     t->priority = prio;
     t->vruntime = 0;
     t->real_time = 0;
+    t->exec_start_tsc = 0;
+    t->exec_min_cycles = MS_TO_CYCLES(EXEC_MIN_MS);
     t->proc = p;
     t->entry = entry;
     t->arg = arg;
@@ -289,10 +320,23 @@ void thread_sleep(unsigned int ticks) {
     task_schedule();
 }
 
+void thread_yield(void) {
+    // ★ Força a troca (ignora o tempo mínimo)
+    current_thread->exec_min_cycles = 0;
+    task_schedule();
+    current_thread->exec_min_cycles = MS_TO_CYCLES(EXEC_MIN_MS);
+}
+
+
 // ---- Scheduler CFS ----
 
 void task_schedule(void) {
     if (!current_thread) return;
+
+        if (current_thread->state == THREAD_RUNNING &&
+        !thread_exec_min_done(current_thread)) {
+        return;
+    }
 
     unsigned long long now = pit_ticks();
     unsigned long long delta = now - last_sched_tick;
