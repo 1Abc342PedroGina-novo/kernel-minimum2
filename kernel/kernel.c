@@ -10,6 +10,7 @@
 #include "pmm.h"
 #define PMM_BITMAP_MAX (128 * 1024)
 static unsigned char pmm_bitmap[PMM_BITMAP_MAX] __attribute__((aligned(4096)));
+extern unsigned char _kernel_end;
 
 #ifndef idt_init
 extern void idt_init(void);
@@ -70,11 +71,18 @@ void kmain(unsigned int magic, unsigned int *mbinfo) {
     serial_print("\n[pmm] === Gerenciador de Paginas Fisicas ===\n");
     pmm_init(0x00400000, pmm_bitmap, PMM_BITMAP_MAX);
 
-    pmm_reserve(0x00000000, 0x00100000);
-    pmm_reserve(0x00100000, 0x00180000);
-    pmm_reserve((unsigned int)pmm_bitmap, (unsigned int)pmm_bitmap + PMM_BITMAP_MAX);
-    pmm_reserve(0x00108000, 0x0010B000);
-    pmm_reserve(0x0010B000, 0x0010D000);
+// 1. BIOS + VGA (primeiro MiB inteiro) — sempre reservar
+pmm_reserve(0x00000000, 0x00100000);
+
+// 2. Kernel inteiro (ELF + .bss) — usa o símbolo do linker
+pmm_reserve(0x00100000, (unsigned int)&_kernel_end);
+serial_print("[pmm] kernel_end = ");
+serial_print_hex((unsigned int)&_kernel_end);
+serial_print("\n");
+
+// 3. Defesa em profundidade: recursos que podem sair do kernel no futuro
+pmm_reserve((unsigned int)pmm_bitmap, (unsigned int)pmm_bitmap + PMM_BITMAP_MAX);
+pmm_reserve((unsigned int)kernel_stack_addr, (unsigned int)kernel_stack_addr + KERNEL_STACK_SIZE);
 
     serial_print("[pmm] total=");
     serial_print_dec(pmm_total_frames());
