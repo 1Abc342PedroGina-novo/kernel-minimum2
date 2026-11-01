@@ -50,11 +50,11 @@ void tss_init(void) {
     serial_print(", ss0=");
     serial_print_hex(tss.ss0);
     serial_print(")\n");
-    serial_print("[tss] stack do kernel: ");
-    serial_print_hex((unsigned int)kernel_stack);
-    serial_print("..0x");
-    serial_print_hex((unsigned int)kernel_stack + sizeof(kernel_stack) - 1);
-    serial_print("\n");
+serial_print("[tss] stack do kernel: ");
+serial_print_hex((unsigned int)kernel_stack);
+serial_print("..");
+serial_print_hex((unsigned int)kernel_stack + sizeof(kernel_stack) - 1);
+serial_print("\n");
 }
 
 void tss_set_kernel_stack(unsigned int esp0) {
