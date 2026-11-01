@@ -16,7 +16,7 @@ context_switch:
     lea ecx, [esp + 12]
     mov [eax + 16], ecx
 
-    ; Salva eip de old (endereço de retorno)
+    ; Salva eip de old
     mov ecx, [esp]
     mov [eax + 20], ecx
 
@@ -39,8 +39,14 @@ context_switch:
     ; Carrega esp de new
     mov esp, [edx + 16]
 
-    ; Salta para new->eip com new->cs e new->eflags
-    push dword [edx + 24]   ; eflags
+    ; ★ Empilha eflags FORÇANDO IF=1
+    mov eax, [edx + 24]     ; eflags de new
+    or eax, 0x200           ; ★ seta IF=1
+    push eax
+
+    ; Empilha cs, eip
     push dword [edx + 28]   ; cs
     push dword [edx + 20]   ; eip
+
+    ; ★ iret (salta para new->eip com IF=1)
     iret
