@@ -33,7 +33,8 @@ struct thread {
     unsigned int priority;         // 1..32
     unsigned long long vruntime;         // tempo virtual (escala 1024*1024)
     unsigned long long real_time;        // ticks reais executados
-
+    unsigned long long exec_start_tsc;     // TSC quando começou a rodar
+    unsigned long long exec_min_cycles;    // ciclos mínimos (0.75 ms)
     unsigned int wakeup_tick;      // para sleep
 
     struct task *proc;
