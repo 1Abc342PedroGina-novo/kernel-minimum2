@@ -109,7 +109,7 @@ static void worker_loop(void *arg) {
         
         // Se o seu Timer (IRQ0) ainda não estiver 100% funcional para preempção,
         // use isso temporariamente para forçar a troca de contexto cooperativa:
-        // thread_yield(); 
+        thread_yield(); 
     }
 }
 
