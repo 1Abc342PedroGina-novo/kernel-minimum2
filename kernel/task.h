@@ -31,15 +31,19 @@ struct thread {
     unsigned int tid;
     unsigned int state;
     unsigned int priority;         // 1..32
+#ifdef VRUNTIME_FUTURE
     unsigned long long vruntime;         // tempo virtual (escala 1024*1024)
     unsigned long long real_time;        // ticks reais executados
+    unsigned long long pending_delta;   // ★ ticks acumulados
+#endif
     unsigned long long exec_start_tsc;     // TSC quando começou a rodar
     unsigned long long exec_min_cycles;    // ciclos mínimos (0.75 ms)
     unsigned int wakeup_tick;      // para sleep
-unsigned long long pending_delta;   // ★ ticks acumulados
+
     struct task *proc;
     struct thread_context ctx;
 
+    unsigned long long run_time;   
     unsigned int *kernel_stack;
     unsigned int  kernel_stack_top;
 
