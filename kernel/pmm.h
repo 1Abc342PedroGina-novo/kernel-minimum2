@@ -32,5 +32,7 @@ int pmm_release(unsigned int start, unsigned int end);
 unsigned int pmm_total_frames(void);
 unsigned int pmm_used_frames(void);
 unsigned int pmm_free_count(void);
+unsigned int *pmm_get_bitmap(void);
+unsigned int  pmm_get_bitmap_words(void);
 
 #endif
