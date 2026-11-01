@@ -332,7 +332,7 @@ void task_schedule(void) {
 
     unsigned long long now = pit_ticks();
     unsigned long long delta = now - last_sched_tick;
-    last_sched_tick = now;
+    
 
     // 1. Acorda threads bloqueadas cujo sleep acabou
     struct task *p = process_list;
@@ -358,6 +358,8 @@ void task_schedule(void) {
     }
     prev->state = THREAD_READY;
 
+    last_sched_tick = now;
+    
     // 3. Escolhe próxima (menor vruntime)
     struct thread *next = pick_next();
 
