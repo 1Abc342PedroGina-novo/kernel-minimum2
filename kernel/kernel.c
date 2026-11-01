@@ -85,9 +85,9 @@ void print(const char *s) {
 // Thread que conta e loga periodicamente
 // worker com prioridade visível
 static void worker_loop(void *arg) {
-    uint32_t id = (uint32_t)arg;
-    uint32_t counter = 0;
-    uint32_t last_report = 0;
+    unsigned int id = (unsigned int)arg;
+    unsigned int counter = 0;
+    unsigned int last_report = 0;
 
     while (1) {
         counter++;
@@ -109,7 +109,7 @@ static void worker_loop(void *arg) {
 // ===== CALLBACK DO PIT =====
 // Roda a cada tick (100 Hz). Agenda + loga a cada 100 ticks (1 s).
 static void scheduler_callback(void) {
-    static uint32_t tick = 0;
+    static unsigned int tick = 0;
     tick++;
 
     if (tick % 100 == 0) {
@@ -191,9 +191,9 @@ void kmain(unsigned int magic, unsigned int *mbinfo) {
     serial_print("\n[task] === Criando processos e threads (CFS) ===\n");
 
     // prio 1 (câmera lenta)
-    uint32_t pid_low = process_create();
+    unsigned int pid_low = process_create();
     if (pid_low) {
-        uint32_t tid = thread_create_prio(pid_low, worker_loop, (void *)1, 1);
+        unsigned int tid = thread_create_prio(pid_low, worker_loop, (void *)1, 1);
         serial_print("[main] pid=");
         serial_print_dec(pid_low);
         serial_print(" tid=");
@@ -202,9 +202,9 @@ void kmain(unsigned int magic, unsigned int *mbinfo) {
     }
 
     // prio 16 (baseline)
-    uint32_t pid_mid = process_create();
+    unsigned int pid_mid = process_create();
     if (pid_mid) {
-        uint32_t tid = thread_create_prio(pid_mid, worker_loop, (void *)2, 16);
+        unsigned int tid = thread_create_prio(pid_mid, worker_loop, (void *)2, 16);
         serial_print("[main] pid=");
         serial_print_dec(pid_mid);
         serial_print(" tid=");
@@ -213,9 +213,9 @@ void kmain(unsigned int magic, unsigned int *mbinfo) {
     }
 
     // prio 32 (super-velocidade)
-    uint32_t pid_high = process_create();
+    unsigned int pid_high = process_create();
     if (pid_high) {
-        uint32_t tid = thread_create_prio(pid_high, worker_loop, (void *)3, 32);
+        unsigned int tid = thread_create_prio(pid_high, worker_loop, (void *)3, 32);
         serial_print("[main] pid=");
         serial_print_dec(pid_high);
         serial_print(" tid=");
