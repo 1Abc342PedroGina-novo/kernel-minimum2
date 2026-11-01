@@ -9,39 +9,41 @@
 #define THREAD_BLOCKED  2
 #define THREAD_ZOMBIE   3
 
-// Prioridade (futuro)
-#define THREAD_PRIO_NORMAL 0
+// Prioridade (1..32)
+#define THREAD_PRIO_MIN     1
+#define THREAD_PRIO_MAX     32
+#define THREAD_PRIO_DEFAULT 16
 
 #define MAX_PROCESSES 16
 #define MAX_THREADS   64
 
 // ---- Estruturas ----
 
-// Contexto salvo em context_switch (callee-saved + EIP/ESP)
 struct thread_context {
-    unsigned int edi, esi, ebp, ebx;   // callee-saved (salvos no switch)
-    unsigned int esp;                  // stack pointer
-    unsigned int eip;                  // instruction pointer (retorno)
+    unsigned int edi, esi, ebp, ebx;
+    unsigned int esp;
+    unsigned int eip;
 };
 
-// Thread
 struct thread {
     unsigned int tid;
-    unsigned int state;                // THREAD_READY / RUNNING / BLOCKED / ZOMBIE
-    unsigned int priority;
-    unsigned int wakeup_tick;          // para sleep (0 = sem sleep)
+    unsigned int state;
+    unsigned int priority;         // 1..32
+    unsigned long long vruntime;         // tempo virtual (escala 1024*1024)
+    unsigned long long real_time;        // ticks reais executados
 
-    struct task *proc;          // processo dono
+    unsigned int wakeup_tick;      // para sleep
 
-    struct thread_context ctx;     // contexto salvo
+    struct task *proc;
+    struct thread_context ctx;
 
-    unsigned int *kernel_stack;        // stack do kernel (alocada do PMM)
-    unsigned int  kernel_stack_top;    // TSS.esp0 quando esta thread roda
+    unsigned int *kernel_stack;
+    unsigned int  kernel_stack_top;
 
-    void (*entry)(void *arg);      // função de entrada
+    void (*entry)(void *arg);
     void *arg;
 
-    struct thread *next;           // lista circular
+    struct thread *next;
 };
 
 // Processo
