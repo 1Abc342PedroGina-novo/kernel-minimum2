@@ -18,7 +18,7 @@ void serial_print_dec64(unsigned long long value) {
     int i = 0;
     if (value == 0) { serial_putchar('0'); return; }
     while (value > 0) {
-        buf[i++] = '0' + (uint64_t)(value % 10);
+        buf[i++] = '0' + (unsigned long long)(value % 10);
         value /= 10;
     }
     while (i-- > 0) serial_putchar(buf[i]);
