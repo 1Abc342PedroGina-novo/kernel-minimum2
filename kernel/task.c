@@ -296,8 +296,8 @@ void task_schedule(void) {
     unsigned long long delta = now - last_sched_tick;
     last_sched_tick = now;
 
-    // Acorda threads bloqueadas cujo sleep acabou
-    struct task *p = process_list;
+    // 1. Acorda threads bloqueadas cujo sleep acabou
+    struct process *p = process_list;
     while (p) {
         struct thread *t = p->threads;
         while (t) {
@@ -310,53 +310,65 @@ void task_schedule(void) {
         p = p->next;
     }
 
-    // Atualiza vruntime da thread atual (que acabou de rodar 'delta' ticks)
-    if (current_thread->state == THREAD_RUNNING) {
-        update_vruntime(current_thread, delta);
-        current_thread->state = THREAD_READY;
+    // 2. Atualiza vruntime da thread atual (que acabou de rodar 'delta' ticks)
+    struct thread *prev = current_thread;
+    if (prev->state == THREAD_RUNNING) {
+        update_vruntime(prev, delta);
+        prev->state = THREAD_READY;
     }
 
-    // Escolhe a próxima (menor vruntime)
+    // 3. Escolhe a próxima (menor vruntime)
     struct thread *next = pick_next();
 
-        static unsigned int n = 0;
-    if (++n <= 30) {
+    // ★ Log de diagnóstico (primeiros 30)
+    static unsigned int sched_count = 0;
+    if (++sched_count <= 30) {
         serial_print("[sched] cur=");
-        serial_print_dec(current_thread ? current_thread->tid : 999);
+        serial_print_dec(prev ? prev->tid : 999);
         serial_print(" vrt_cur=");
-        serial_print_dec64(current_thread ? current_thread->vruntime : 0);
+        serial_print_dec64(prev ? prev->vruntime : 0);
         serial_print(" next=");
         serial_print_dec(next ? next->tid : 999);
         serial_print(" vrt_next=");
         serial_print_dec64(next ? next->vruntime : 0);
         serial_print("\n");
     }
-    // Se ninguém pronto, mantém a atual se READY
+
+    // 4. Se ninguém pronto, mantém a atual
     if (!next) {
-        if (current_thread->state == THREAD_READY) {
-            current_thread->state = THREAD_RUNNING;
+        if (prev->state == THREAD_READY) {
+            prev->state = THREAD_RUNNING;
         }
         return;
     }
 
-    if (next == current_thread) {
-        current_thread->state = THREAD_RUNNING;
+    if (next == prev) {
+        prev->state = THREAD_RUNNING;
         return;
     }
 
-    // Troca de contexto
+    // 5. Troca de contexto
     next->state = THREAD_RUNNING;
-    struct thread *prev = current_thread;
     current_thread = next;
     current_process = next->proc;
 
     tss_set_kernel_stack(next->kernel_stack_top);
-
     if (next->proc->page_directory) {
         __asm__ volatile ("mov %0, %%cr3" : : "r"(next->proc->page_directory) : "memory");
     }
 
+    // ★ context_switch salva prev, carrega next.
+    // Quando prev for RETOMADA, este ponto continua executando.
+    // Nesse momento, current_thread aponta para next (errado!) — restaurar para prev.
     context_switch(&prev->ctx, &next->ctx);
+
+    // ★ CORREÇÃO CRÍTICA: restaurar current_thread para prev
+    current_thread = prev;
+    current_process = prev->proc;
+    tss_set_kernel_stack(prev->kernel_stack_top);
+    if (prev->proc->page_directory) {
+        __asm__ volatile ("mov %0, %%cr3" : : "r"(prev->proc->page_directory) : "memory");
+    }
 }
 
 // ---- Consulta ----
