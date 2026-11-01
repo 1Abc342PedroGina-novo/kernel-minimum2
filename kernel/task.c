@@ -87,12 +87,17 @@ static struct thread *pick_next(void) {
         struct thread *t = p->threads;
         while (t) {
             if (t->state == THREAD_READY) {
+                // ★ Se prev rodou > 150 ms, ignora prev
+                if (t == current_thread && current_thread->run_time > MAX_RUN_MS) {
+                    t = t->next;
+                    continue;
+                }
+
                 if (!best) {
                     best = t;
                 } else if (t->priority > best->priority) {
                     best = t;
                 } else if (t->priority == best->priority) {
-                    // Round-robin: menor run_time
                     if (t->run_time < best->run_time) best = t;
                 }
             }
@@ -100,26 +105,6 @@ static struct thread *pick_next(void) {
         }
         p = p->next;
     }
-
-    // ★ Se current rodou > 150 ms, força troca para best
-    if (current_thread && best == current_thread) {
-        unsigned long long run_ms = tsc_to_ms(rdtsc() - current_thread->exec_start_tsc);
-        if (run_ms > MAX_RUN_MS) {
-            // Procura outra thread (qualquer uma READY diferente de current)
-            p = process_list;
-            while (p) {
-                struct thread *t = p->threads;
-                while (t) {
-                    if (t->state == THREAD_READY && t != current_thread) {
-                        return t;
-                    }
-                    t = t->next;
-                }
-                p = p->next;
-            }
-        }
-    }
-
     return best;
 }
 
