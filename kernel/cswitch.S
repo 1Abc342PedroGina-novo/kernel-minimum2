@@ -25,20 +25,20 @@ context_switch:
     mov [eax + 8], ebp
     mov [eax + 12], ebx
 
-    ; ---- Salva esp (antes do call, com args + retorno) ----
+    ; ---- Salva esp de old (antes do call) ----
     lea ecx, [esp + 12]
     mov [eax + 16], ecx
 
-    ; ---- Salva eip (endereço de retorno) ----
+    ; ---- Salva eip de old (endereço de retorno) ----
     mov ecx, [esp]
     mov [eax + 20], ecx
 
-    ; ---- Salva eflags ----
+    ; ---- Salva eflags de old ----
     pushfd
     pop ecx
     mov [eax + 24], ecx
 
-    ; ---- Salva cs ----
+    ; ---- Salva cs de old ----
     xor ecx, ecx
     mov cx, cs
     mov [eax + 28], ecx
@@ -52,44 +52,9 @@ context_switch:
     ; ---- Carrega esp de new ----
     mov esp, [edx + 16]
 
-    ; ---- Prepara a stack da nova thread para o stub de IRQ ----
-    ; O stub de IRQ, após 'ret' de context_switch, vai executar:
-    ;   pop eax        (ds)
-    ;   mov ds, ax
-    ;   popa           (8 registradores)
-    ;   add esp, 8     (int_no, err_code)
-    ;   iret           (eip, cs, eflags)
-    ;
-    ; Então precisamos empilhar, na ordem inversa:
-    ;   eflags, cs, eip, err_code, int_no, eax..edi, ds
-    ;
-    ; Ordem correta na stack (do topo para baixo):
-    ;   [esp+0]  ds
-    ;   [esp+4]  edi
-    ;   [esp+8]  esi
-    ;   [esp+12] ebp
-    ;   [esp+16] esp_dummy
-    ;   [esp+20] ebx
-    ;   [esp+24] edx
-    ;   [esp+28] ecx
-    ;   [esp+32] eax
-    ;   [esp+36] int_no
-    ;   [esp+40] err_code
-    ;   [esp+44] eip
-    ;   [esp+48] cs
-    ;   [esp+52] eflags
-
-    ; Empilha na ordem inversa (eflags primeiro, ds por último)
+    ; ---- Salta para new->eip com new->eflags e new->cs ----
+    ; (via iret, que popa eip, cs, eflags)
     push dword [edx + 24]   ; eflags
     push dword [edx + 28]   ; cs
     push dword [edx + 20]   ; eip
-    push dword 0            ; err_code
-    push dword 0            ; int_no
-    pusha                   ; 8 registradores (eax..edi)
-    push dword 0x10         ; ds
-
-    ; ---- Retorna para task_schedule ----
-    ; O 'ret' vai saltar para o endereço de retorno do 'call context_switch'
-    ; em task_schedule. Quando o stub de IRQ continuar (após task_schedule
-    ; retornar), ele vai popar os valores empilhados acima.
-    ret
+    iret
