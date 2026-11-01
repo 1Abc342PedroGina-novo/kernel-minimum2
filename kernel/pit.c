@@ -9,6 +9,7 @@
 
 volatile unsigned int ticks = 0;
 unsigned int freq_hz = 0;   // frequência REAL (após arredondamento)
+static void (*pit_callback)(void) = 0;
 
 static void pit_tick(struct regs *r) {
     (void)r;
@@ -51,8 +52,6 @@ unsigned int pit_ticks(void) {
 unsigned int pit_frequency(void) {
     return freq_hz ? freq_hz : 1;   // ★ NUNCA retorna 0
 }
-
-static void (*pit_callback)(void) = 0;
 
 void pit_set_callback(void (*cb)(void)) {
     pit_callback = cb;
