@@ -360,6 +360,17 @@ void task_schedule(void) {
     // 3. Escolhe próxima
     struct thread *next = pick_next();
 
+        serial_print("[sched] cur=");
+    serial_print_dec(prev ? prev->tid : 999);
+    serial_print(" vrt_cur=");
+    serial_print_dec64(prev ? prev->vruntime : 0);
+    serial_print(" next=");
+    serial_print_dec(next ? next->tid : 999);
+    serial_print(" vrt_next=");
+    serial_print_dec64(next ? next->vruntime : 0);
+    serial_print("\n");
+    // ...
+
     // ★ Log de diagnóstico
     static unsigned int sched_count = 0;
     if (++sched_count <= 30) {
