@@ -25,7 +25,7 @@ static unsigned long long last_sched_tick = 0;
 
 // ---- Helpers ----
 
-static void memset8(void *p, uint8_t v, unsigned int n) {
+static void memset8(void *p, unsigned char v, unsigned int n) {
     uint8_t *b = (uint8_t *)p;
     for (unsigned int i = 0; i < n; i++) b[i] = v;
 }
