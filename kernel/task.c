@@ -29,6 +29,36 @@ static inline unsigned long long rdtsc(void) {
     return ((unsigned long long)hi << 32) | lo;
 }
 
+unsigned long long __udivdi3(unsigned long long n, unsigned long long d) {
+    if (d == 0) {
+        // Divisão por zero — comportamento indefinido
+        return 0;
+    }
+
+    // Caso especial: divisor == 1
+    if (d == 1) return n;
+
+    // Caso especial: n < d
+    if (n < d) return 0;
+
+    unsigned long long q = 0;
+    unsigned long long r = 0;
+
+    // Divisão longa: para cada bit de n (do mais significativo ao menos)
+    for (int i = 63; i >= 0; i--) {
+        // Shift r left, adiciona bit i de n
+        r = (r << 1) | ((n >> i) & 1);
+
+        // Se r >= d, subtrai e seta bit i do quociente
+        if (r >= d) {
+            r -= d;
+            q |= (1ULL << i);
+        }
+    }
+
+    return q;
+}
+
 static inline unsigned long long tsc_to_ms(unsigned long long tsc) {
     return tsc / (TSC_FREQ_HZ / 1000);
 }
