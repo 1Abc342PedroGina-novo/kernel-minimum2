@@ -86,7 +86,10 @@ void print(const char *s) {
 // worker com prioridade visível
 static void worker_loop(void *arg) {
     unsigned int id = (unsigned int)arg;
-    unsigned int counter = 0;
+    
+    // Força as variáveis a irem para a memória, impedindo o compilador de 
+    // criar um loop "fechado demais" em registradores que ignora o contexto externo
+    volatile unsigned int counter = 0;
     unsigned int last_report = 0;
 
     while (1) {
@@ -103,8 +106,13 @@ static void worker_loop(void *arg) {
             serial_print_dec(task_current_tid());
             serial_print("\n");
         }
+        
+        // Se o seu Timer (IRQ0) ainda não estiver 100% funcional para preempção,
+        // use isso temporariamente para forçar a troca de contexto cooperativa:
+        // thread_yield(); 
     }
 }
+
 
 // ===== CALLBACK DO PIT =====
 // Roda a cada tick (100 Hz). Agenda + loga a cada 100 ticks (1 s).
