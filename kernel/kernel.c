@@ -84,14 +84,19 @@ void print(const char *s) {
 
 // Thread que conta e loga periodicamente
 // worker com prioridade visível
-void worker_loop(void *arg) {
-        __asm__ volatile ("sti");   
+static void worker_loop(void *arg) {
     unsigned int id = (unsigned int)arg;
     unsigned int counter = 0;
     unsigned int last_report = 0;
 
     while (1) {
         counter++;
+
+        // ★ Cede a CPU a cada 1M iterações (cooperativo)
+        if ((counter % 1000000) == 0) {
+            thread_yield();
+        }
+
         if ((counter - last_report) >= 50000000) {
             last_report = counter;
             serial_print("[worker ");
