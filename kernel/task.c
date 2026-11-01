@@ -319,7 +319,7 @@ void task_schedule(void) {
     // Escolhe a próxima (menor vruntime)
     struct thread *next = pick_next();
 
-        static uint32_t n = 0;
+        static unsigned int n = 0;
     if (++n <= 30) {
         serial_print("[sched] cur=");
         serial_print_dec(current_thread ? current_thread->tid : 999);
