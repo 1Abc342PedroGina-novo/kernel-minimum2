@@ -74,7 +74,7 @@ unsigned int process_create(void);
 //   arg   = argumento
 // Retorna TID (>0) ou 0 em erro.
 unsigned int thread_create(unsigned int pid, void (*entry)(void *), void *arg);
-
+unsigned int thread_create_prio(unsigned int pid, void (*entry)(void *), void *arg, unsigned int prio);
 // Termina a thread atual. Nunca retorna.
 void thread_exit(void);
 
